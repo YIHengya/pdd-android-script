@@ -6,7 +6,7 @@ if (!floaty.checkPermission()) {
 }
 
 // 拼多多商品链接
-const PDD_URL = "https://mobile.yangkeduo.com/goods.html?goods_id=452992556772";
+const PDD_URL = "https://mobile.yangkeduo.com/goods.html?goods_id=777095266166";
 
 // 创建悬浮窗
 var window = floaty.window(
