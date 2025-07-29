@@ -87,6 +87,17 @@ function selectFirstModel() {
     return false;
 }
 
+// 选择最后一个型号（如果型号在下面，最后一个可能最便宜）
+function selectLastModel() {
+    var models = getModelOptions();
+    if (models.length > 0) {
+        var lastModel = models[models.length - 1];
+        console.log("选择最后一个型号: " + lastModel.text);
+        return clickElement(lastModel.element);
+    }
+    return false;
+}
+
 // 获取所有款式选项（按位置排序，最下面的通常最便宜）
 function getStyleOptions() {
     var styles = [];
@@ -96,21 +107,26 @@ function getStyleOptions() {
 
         // 查找款式区域附近的所有可点击文本
         var allClickableTexts = clickable(true).className("android.widget.TextView").find();
+        var styleBounds = styleSection.bounds();
+
         allClickableTexts.forEach(function(element) {
             var elementText = element.text();
+            var elementBounds = element.bounds();
+
+            // 更宽松的匹配条件，包含更多可能的款式文本
             if (elementText && elementText.trim() !== "" && elementText !== "款式" &&
+                elementBounds.top > styleBounds.top && // 在款式标题下方
                 (elementText.indexOf("米") >= 0 || elementText.indexOf("条") >= 0 ||
-                 elementText.indexOf("【") >= 0 || elementText.indexOf("装") >= 0)) {
-                // 检查元素位置是否在款式区域附近
-                var styleBounds = styleSection.bounds();
-                var elementBounds = element.bounds();
-                if (elementBounds.top > styleBounds.top) { // 在款式标题下方
-                    styles.push({
-                        text: elementText,
-                        element: element,
-                        top: elementBounds.top // 记录位置用于排序
-                    });
-                }
+                 elementText.indexOf("【") >= 0 || elementText.indexOf("装") >= 0 ||
+                 elementText.indexOf("红绳") >= 0 || elementText.indexOf("opp") >= 0 ||
+                 elementText.indexOf("礼盒") >= 0 || elementText.indexOf("项链") >= 0)) {
+
+                styles.push({
+                    text: elementText,
+                    element: element,
+                    top: elementBounds.top,
+                    bottom: elementBounds.bottom
+                });
             }
         });
 
@@ -119,14 +135,15 @@ function getStyleOptions() {
             return a.top - b.top;
         });
 
+        console.log("找到的款式选项:");
         styles.forEach(function(style, index) {
-            console.log("款式选项[" + index + "]: " + style.text + " (位置: " + style.top + ")");
+            console.log("款式选项[" + index + "]: " + style.text + " (位置: " + style.top + "-" + style.bottom + ")");
         });
     }
     return styles;
 }
 
-// 选择最后一个款式（通常最便宜）
+// 选择最便宜的款式（智能识别）
 function selectCheapestStyle() {
     // 先滚动到底部确保看到所有选项
     scrollToBottom();
@@ -134,8 +151,41 @@ function selectCheapestStyle() {
 
     var styles = getStyleOptions();
     if (styles.length > 0) {
-        var cheapestStyle = styles[styles.length - 1]; // 最后一个（最下面的）
-        console.log("选择最便宜的款式: " + cheapestStyle.text);
+        console.log("分析款式选项，寻找最便宜的...");
+
+        // 优先级：红绳 > opp袋 > 其他按位置排序
+        var cheapestStyle = null;
+
+        // 第一优先级：查找包含"红绳"的选项
+        for (var i = 0; i < styles.length; i++) {
+            if (styles[i].text.indexOf("红绳") >= 0) {
+                cheapestStyle = styles[i];
+                console.log("找到红绳选项（最便宜）: " + cheapestStyle.text);
+                break;
+            }
+        }
+
+        // 第二优先级：查找包含"opp"的选项
+        if (!cheapestStyle) {
+            for (var j = 0; j < styles.length; j++) {
+                if (styles[j].text.toLowerCase().indexOf("opp") >= 0) {
+                    cheapestStyle = styles[j];
+                    console.log("找到opp袋选项（较便宜）: " + cheapestStyle.text);
+                    break;
+                }
+            }
+        }
+
+        // 第三优先级：选择位置最下面的
+        if (!cheapestStyle) {
+            styles.sort(function(a, b) {
+                return a.top - b.top;
+            });
+            cheapestStyle = styles[styles.length - 1];
+            console.log("选择位置最下面的选项: " + cheapestStyle.text);
+        }
+
+        console.log("最终选择: " + cheapestStyle.text + " (位置: " + cheapestStyle.top + ")");
         return clickElement(cheapestStyle.element);
     }
     return false;
@@ -172,31 +222,88 @@ function debugClickableElements() {
     console.log("=== 调试结束 ===\n");
 }
 
+// 检测页面布局并智能选择
+function detectLayoutAndSelect() {
+    console.log("检测页面布局...");
+
+    var modelSection = text("型号").findOne(2000);
+    var styleSection = text("款式").findOne(2000);
+
+    var modelTop = modelSection ? modelSection.bounds().top : -1;
+    var styleTop = styleSection ? styleSection.bounds().top : -1;
+
+    console.log("型号区域位置: " + modelTop);
+    console.log("款式区域位置: " + styleTop);
+
+    var selections = [];
+
+    if (modelSection && styleSection) {
+        if (modelTop < styleTop) {
+            // 型号在上，款式在下
+            console.log("布局：型号在上，款式在下");
+            selections.push({
+                name: "型号",
+                action: function() { return selectFirstModel(); }
+            });
+            selections.push({
+                name: "款式",
+                action: function() { return selectCheapestStyle(); }
+            });
+        } else {
+            // 款式在上，型号在下
+            console.log("布局：款式在上，型号在下");
+            selections.push({
+                name: "款式",
+                action: function() { return selectCheapestStyle(); }
+            });
+            selections.push({
+                name: "型号",
+                action: function() { return selectLastModel(); }
+            });
+        }
+    } else if (modelSection) {
+        console.log("只有型号选项");
+        selections.push({
+            name: "型号",
+            action: function() { return selectFirstModel(); }
+        });
+    } else if (styleSection) {
+        console.log("只有款式选项");
+        selections.push({
+            name: "款式",
+            action: function() { return selectCheapestStyle(); }
+        });
+    }
+
+    return selections;
+}
+
 // 主要执行逻辑 - 智能选择最便宜SKU
 console.log("开始智能选择最便宜SKU...");
 
-// 步骤1：先选择型号（选择第一个，通常是默认推荐的）
-console.log("\n=== 步骤1：选择型号 ===");
-var modelSelected = selectFirstModel();
-if (modelSelected) {
-    console.log("型号选择成功");
-    sleep(1500); // 等待页面更新
+// 检测布局并获取选择顺序
+var selections = detectLayoutAndSelect();
+
+if (selections.length > 0) {
+    // 按检测到的顺序进行选择
+    for (var i = 0; i < selections.length; i++) {
+        var selection = selections[i];
+        console.log("\n=== 步骤" + (i + 1) + "：选择" + selection.name + " ===");
+
+        var selected = selection.action();
+        if (selected) {
+            console.log(selection.name + "选择成功");
+            sleep(1500); // 等待页面更新
+        } else {
+            console.log("未找到" + selection.name + "选项或选择失败");
+        }
+    }
 } else {
-    console.log("未找到型号选项或选择失败");
+    console.log("未检测到型号或款式区域");
 }
 
-// 步骤2：滚动到底部并选择最便宜的款式
-console.log("\n=== 步骤2：选择最便宜的款式 ===");
-var styleSelected = selectCheapestStyle();
-if (styleSelected) {
-    console.log("款式选择成功");
-    sleep(1500); // 等待价格更新
-} else {
-    console.log("未找到款式选项或选择失败");
-}
-
-// 步骤3：获取最终价格信息
-console.log("\n=== 步骤3：获取最终价格 ===");
+// 获取最终价格信息
+console.log("\n=== 获取最终价格信息 ===");
 var finalPrice = getCurrentPrice();
 if (finalPrice) {
     console.log("最便宜SKU的价格信息:");
@@ -213,7 +320,7 @@ if (finalPrice) {
 }
 
 // 如果上述方法都失败，尝试备用方案
-if (!modelSelected && !styleSelected) {
+if (selections.length === 0) {
     console.log("\n=== 备用方案：手动查找选项 ===");
 
     // 先运行调试，看看所有可点击元素
@@ -264,8 +371,8 @@ if (!modelSelected && !styleSelected) {
     }
 }
 
-// 步骤4：点击确定按钮
-console.log("\n=== 步骤4：点击确定按钮 ===");
+// 点击确定按钮
+console.log("\n=== 点击确定按钮 ===");
 
 function clickConfirmButton() {
     // 查找确定按钮的多种可能文本
