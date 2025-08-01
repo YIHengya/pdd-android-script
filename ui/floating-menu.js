@@ -21,7 +21,7 @@ function FloatingMenu() {
  */
 FloatingMenu.prototype.create = function() {
     this.menuWindow = floaty.rawWindow(
-        <frame id="menuFrame" w="280dp" h="220dp" visibility="gone" bg="#88000000">
+        <frame id="menuFrame" w="280dp" h="350dp" visibility="gone" bg="#88000000">
             <card cardCornerRadius="10dp" cardElevation="8dp" cardBackgroundColor="#ffffff" margin="5dp">
                 <vertical padding="15dp">
                     <horizontal gravity="center_vertical">
@@ -30,30 +30,29 @@ FloatingMenu.prototype.create = function() {
                                 w="35dp" h="35dp" textSize="16sp"/>
                     </horizontal>
                     
-                    <View h="1dp" bg="#eeeeee" margin="0 10dp 0 0"/>
+                    <View h="1dp" bg="#eeeeee" margin="5dp"/>
                     
-                    <horizontal margin="0 10dp 0 0" gravity="center_vertical">
-                        <Switch id="scriptSwitch" text="启动脚本" textColor="#333333" textSize="14sp" checked="false"/>
-                        <View layout_weight="1"/>
-                        <text id="statusText" text="就绪" textColor="#666666" textSize="12sp"/>
+                    <horizontal margin="5dp" gravity="center_vertical">
+                        <Switch id="scriptSwitch" text="自动下单" textColor="#333333" textSize="14sp" checked="false" layout_weight="0"/>
+                        <text id="statusText" text="就绪" textColor="#666666" textSize="12sp" layout_gravity="right" margin="10dp 0 0 0"/>
                     </horizontal>
                     
-                    <horizontal margin="0 8dp 0 0" gravity="center_vertical">
+                    <horizontal margin="5dp" gravity="center_vertical">
                         <text text="目标价格:" textColor="#333333" textSize="14sp"/>
-                        <input id="priceInput" text="0.8" textColor="#333333" bg="#f5f5f5" 
-                               w="80dp" h="40dp" textSize="14sp" margin="8dp 0 0 0" 
+                        <input id="priceInput" text="0.8" textColor="#333333" bg="#f5f5f5"
+                               w="80dp" h="40dp" textSize="14sp" margin="8dp 0 0 0"
                                inputType="numberDecimal"/>
                         <text text="元" textColor="#333333" textSize="14sp" margin="5dp 0 0 0"/>
                     </horizontal>
-                    
-                    <horizontal margin="0 8dp 0 0" gravity="center">
-                        <button id="purchaseBtn" text="购买模式" textColor="#ffffff" bg="#2196F3" 
+
+                    <horizontal margin="5dp" gravity="center">
+                        <button id="purchaseBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
                                 w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
-                        <button id="collectBtn" text="收藏模式" textColor="#ffffff" bg="#FF9800" 
+                        <button id="collectBtn" text="收藏模式" textColor="#ffffff" bg="#FF9800"
                                 w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
                     </horizontal>
-                    
-                    <horizontal margin="0 5dp 0 0" gravity="center">
+
+                    <horizontal margin="5dp" gravity="center">
                         <button id="userInfoBtn" text="用户信息" textColor="#ffffff" bg="#4CAF50"
                                 w="80dp" h="35dp" margin="2dp" textSize="10sp"/>
                         <button id="settingsBtn" text="设置" textColor="#ffffff" bg="#9C27B0"
@@ -61,17 +60,41 @@ FloatingMenu.prototype.create = function() {
                         <button id="helpBtn" text="帮助" textColor="#ffffff" bg="#607D8B"
                                 w="60dp" h="35dp" margin="2dp" textSize="10sp"/>
                     </horizontal>
-                    
-                    <ScrollView h="80dp" w="*" margin="0 5dp 0 0" bg="#f9f9f9">
+
+                    <ScrollView h="80dp" w="*" margin="5dp" bg="#f9f9f9">
                         <text id="logText" text="点击启动开始执行" textColor="#333333" textSize="11sp" padding="8dp"/>
                     </ScrollView>
+
+                    <View h="1dp" bg="#eeeeee" margin="5dp"/>
+
+                    <vertical id="userInfoSection" margin="5dp" padding="8dp" visibility="visible">
+                        <text text="收件人信息" textColor="#333333" textSize="12sp" textStyle="bold" margin="0 0 5dp 0"/>
+                        <horizontal gravity="center_vertical">
+                            <text text="姓名:" textColor="#666666" textSize="11sp" w="40dp"/>
+                            <text id="recipientName" text="未获取" textColor="#333333" textSize="11sp" layout_weight="1"/>
+                        </horizontal>
+                        <horizontal gravity="center_vertical" margin="0 0 2dp 0">
+                            <text text="手机:" textColor="#666666" textSize="11sp" w="40dp"/>
+                            <text id="recipientPhone" text="未获取" textColor="#333333" textSize="11sp" layout_weight="1"/>
+                        </horizontal>
+                        <horizontal gravity="center_vertical">
+                            <text text="地址:" textColor="#666666" textSize="11sp" w="40dp"/>
+                            <text id="recipientAddress" text="未获取" textColor="#333333" textSize="10sp" layout_weight="1" maxLines="2"/>
+                        </horizontal>
+                    </vertical>
                 </vertical>
             </card>
         </frame>
     );
     
     this.menuWindow.setTouchable(true);
-    this.setupEventHandlers();
+
+    // 延迟设置事件处理器，确保UI元素已完全初始化
+    var self = this;
+    setTimeout(function() {
+        self.setupEventHandlers();
+    }, 100);
+
     this.updateModeButtons();
     return this.menuWindow;
 };
@@ -82,58 +105,81 @@ FloatingMenu.prototype.create = function() {
 FloatingMenu.prototype.setupEventHandlers = function() {
     var self = this;
 
-    // 开关事件处理
-    this.menuWindow.scriptSwitch.setOnCheckedChangeListener(function(_, checked) {
-        if (checked) {
-            self.startScript();
-        } else {
-            self.stopScript();
+    try {
+        // 检查UI元素是否已初始化
+        if (!this.menuWindow.scriptSwitch) {
+            console.log("scriptSwitch element not found, retrying in 200ms...");
+            setTimeout(function() {
+                self.setupEventHandlers();
+            }, 200);
+            return;
         }
-    });
 
-    // 关闭菜单按钮事件
-    this.menuWindow.closeMenuBtn.click(function() {
-        self.hide();
-    });
+        console.log("Setting up event handlers for floating menu...");
 
-    // 购买模式按钮
-    this.menuWindow.purchaseBtn.click(function() {
-        self.setMode('purchase');
-    });
+        // 开关事件处理
+        this.menuWindow.scriptSwitch.setOnCheckedChangeListener(function(_, checked) {
+            if (checked) {
+                self.startScript();
+            } else {
+                self.stopScript();
+            }
+        });
 
-    // 收藏模式按钮
-    this.menuWindow.collectBtn.click(function() {
-        self.setMode('collect');
-    });
+        // 关闭菜单按钮事件
+        this.menuWindow.closeMenuBtn.click(function() {
+            self.hide();
+        });
 
-    // 设置按钮
-    this.menuWindow.settingsBtn.click(function() {
-        self.addLog("设置功能开发中...");
-        // 这里可以添加设置功能
-    });
+        // 购买模式按钮
+        this.menuWindow.purchaseBtn.click(function() {
+            self.setMode('purchase');
+        });
 
-    // 用户信息按钮
-    this.menuWindow.userInfoBtn.click(function() {
-        self.addLog("正在获取用户信息...");
-        if (self.onUserInfoCallback) {
-            self.onUserInfoCallback(self.menuWindow);
-        } else {
-            self.addLog("用户信息功能未初始化");
-        }
-    });
+        // 收藏模式按钮
+        this.menuWindow.collectBtn.click(function() {
+            self.setMode('collect');
+        });
 
-    // 设置按钮
-    this.menuWindow.settingsBtn.click(function() {
-        self.addLog("设置功能开发中...");
-        // 这里可以添加设置功能
-    });
+        // 设置按钮
+        this.menuWindow.settingsBtn.click(function() {
+            self.addLog("设置功能开发中...");
+            // 这里可以添加设置功能
+        });
 
-    // 帮助按钮
-    this.menuWindow.helpBtn.click(function() {
-        self.addLog("帮助: 选择模式后输入价格点击启动");
-        self.addLog("用户信息: 点击获取当前账号和收件人信息");
-        // 这里可以添加帮助功能
-    });
+        // 用户信息按钮
+        this.menuWindow.userInfoBtn.click(function() {
+            self.addLog("正在获取用户信息...");
+            if (self.onUserInfoCallback) {
+                self.onUserInfoCallback(self.menuWindow, function(userInfo) {
+                    // 获取成功后更新显示
+                    self.updateRecipientInfo(userInfo);
+                });
+            } else {
+                self.addLog("用户信息功能未初始化");
+            }
+        });
+
+        // 设置按钮
+        this.menuWindow.settingsBtn.click(function() {
+            self.addLog("设置功能开发中...");
+            // 这里可以添加设置功能
+        });
+
+        // 帮助按钮
+        this.menuWindow.helpBtn.click(function() {
+            self.addLog("帮助: 选择模式后输入价格点击启动");
+            self.addLog("用户信息: 点击获取当前账号和收件人信息");
+            // 这里可以添加帮助功能
+        });
+
+    } catch (e) {
+        console.error("Error setting up event handlers: " + e.message);
+        // 如果设置事件处理器失败，稍后重试
+        setTimeout(function() {
+            self.setupEventHandlers();
+        }, 500);
+    }
 };
 
 /**
@@ -257,7 +303,7 @@ FloatingMenu.prototype.show = function(x, y) {
 
     // 菜单尺寸（dp转px）
     var menuWidth = 280 * density;
-    var menuHeight = 220 * density;
+    var menuHeight = 350 * density;
     var margin = 10 * density;
 
     // 计算菜单位置，确保完全在屏幕内
@@ -351,6 +397,62 @@ FloatingMenu.prototype.getWindow = function() {
  */
 FloatingMenu.prototype.isVisible = function() {
     return this.visible;
+};
+
+/**
+ * 更新收件人信息显示
+ * @param {Object} userInfo 用户信息对象
+ */
+FloatingMenu.prototype.updateRecipientInfo = function(userInfo) {
+    if (!this.menuWindow || !userInfo) return;
+
+    ui.run(() => {
+        try {
+            // 更新收件人信息
+            if (userInfo.recipient) {
+                var recipient = userInfo.recipient;
+
+                // 更新姓名
+                if (recipient.name) {
+                    this.menuWindow.recipientName.setText(recipient.name);
+                } else {
+                    this.menuWindow.recipientName.setText("未获取");
+                }
+
+                // 更新手机号（显示完整号码）
+                if (recipient.phone) {
+                    this.menuWindow.recipientPhone.setText(recipient.phone);
+                } else {
+                    this.menuWindow.recipientPhone.setText("未获取");
+                }
+
+                // 更新地址
+                if (recipient.address) {
+                    this.menuWindow.recipientAddress.setText(recipient.address);
+                } else {
+                    this.menuWindow.recipientAddress.setText("未获取");
+                }
+            } else {
+                // 如果没有收件人信息，显示默认文本
+                this.menuWindow.recipientName.setText("未获取");
+                this.menuWindow.recipientPhone.setText("未获取");
+                this.menuWindow.recipientAddress.setText("未获取");
+            }
+        } catch (e) {
+            console.error("更新收件人信息显示失败: " + e.message);
+        }
+    });
+};
+
+/**
+ * 隐藏收件人信息区域
+ */
+FloatingMenu.prototype.hideRecipientInfo = function() {
+    if (!this.menuWindow) return;
+
+    ui.run(() => {
+        this.menuWindow.userInfoSection.attr("visibility", "gone");
+    });
 };
 
 /**

@@ -161,7 +161,7 @@ FloatingWindow.prototype.toggleMenu = function() {
     var ballSize = 40 * density;
     // 菜单尺寸（dp转px）
     var menuWidth = 280 * density;
-    var menuHeight = 220 * density;
+    var menuHeight = 350 * density;
 
     // 计算菜单位置，智能选择显示方向
     var menuX, menuY;

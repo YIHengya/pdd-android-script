@@ -123,7 +123,7 @@ MainApp.prototype.setupUserInfoCallback = function() {
     var self = this;
 
     // 设置用户信息获取回调
-    this.floatingWindow.setOnUserInfoCallback(function(window) {
+    this.floatingWindow.setOnUserInfoCallback(function(window, callback) {
         // 在新线程中执行，避免阻塞UI线程
         threads.start(function() {
             try {
@@ -140,7 +140,7 @@ MainApp.prototype.setupUserInfoCallback = function() {
                     if (userInfo.recipient) {
                         logger.addLog(window, "收件人: " + (userInfo.recipient.name || "未获取"));
                         if (userInfo.recipient.phone) {
-                            logger.addLog(window, "手机号: " + userInfo.recipient.phone.substring(0, 3) + "****" + userInfo.recipient.phone.substring(7));
+                            logger.addLog(window, "手机号: " + userInfo.recipient.phone);
                         }
                         if (userInfo.recipient.address) {
                             logger.addLog(window, "地址: " + userInfo.recipient.address);
@@ -149,6 +149,11 @@ MainApp.prototype.setupUserInfoCallback = function() {
                     }
 
                     logger.addLog(window, "=== 用户信息获取完成 ===");
+
+                    // 如果提供了回调函数，调用它来更新UI显示
+                    if (callback && typeof callback === 'function') {
+                        callback(userInfo);
+                    }
                 } else {
                     logger.addLog(window, "❌ 用户信息获取失败");
                     logger.addLog(window, "请确保已登录拼多多并设置了收货地址");
