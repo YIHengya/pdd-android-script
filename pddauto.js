@@ -6,7 +6,7 @@ if (!floaty.checkPermission()) {
 }
 
 // 拼多多商品链接
-const PDD_URL = "https://mobile.yangkeduo.com/goods.html?goods_id=777095266166";
+const PDD_URL = "https://mobile.yangkeduo.com/goods.html?goods_id=745446236119";
 
 // 创建悬浮窗
 var window = floaty.window(
@@ -16,8 +16,7 @@ var window = floaty.window(
             <button id="closeBtn" text="×" textColor="#ffffff" bg="#44ff0000" w="30" h="30" margin="5 0 0 0"/>
         </horizontal>
         <horizontal margin="0 5 0 0">
-            <button id="startBtn" text="开始" textColor="#ffffff" bg="#4400ff00" w="50" h="35"/>
-            <button id="stopBtn" text="停止" textColor="#ffffff" bg="#44ff0000" w="50" h="35" margin="5 0 0 0"/>
+            <Switch id="scriptSwitch" text="启动脚本" textColor="#ffffff" textSize="12sp" checked="false"/>
         </horizontal>
         <ScrollView h="200" w="280">
             <text id="logText" text="点击开始执行脚本" textColor="#ffffff" textSize="12sp" margin="5"/>
@@ -43,33 +42,39 @@ function addLog(message) {
 var isRunning = false;
 var scriptThread = null;
 
-// 按钮事件处理
-window.startBtn.click(function() {
-    if (isRunning) {
-        addLog("脚本正在运行中...");
-        return;
-    }
+// 开关事件处理
+window.scriptSwitch.setOnCheckedChangeListener(function(view, checked) {
+    if (checked) {
+        // 开关打开，开始执行脚本
+        if (isRunning) {
+            addLog("脚本正在运行中...");
+            return;
+        }
 
-    addLog("开始执行脚本");
-    isRunning = true;
+        addLog("开始执行脚本");
+        isRunning = true;
 
-    // 在新线程中执行脚本
-    scriptThread = threads.start(function() {
-        try {
-            executePDDScript();
-        } catch (e) {
-            addLog("脚本执行出错: " + e.message);
-        } finally {
+        // 在新线程中执行脚本
+        scriptThread = threads.start(function() {
+            try {
+                executePDDScript();
+            } catch (e) {
+                addLog("脚本执行出错: " + e.message);
+            } finally {
+                isRunning = false;
+                // 脚本结束时自动关闭开关
+                ui.run(function() {
+                    window.scriptSwitch.setChecked(false);
+                });
+            }
+        });
+    } else {
+        // 开关关闭，停止脚本
+        if (scriptThread) {
+            scriptThread.interrupt();
+            addLog("脚本已停止");
             isRunning = false;
         }
-    });
-});
-
-window.stopBtn.click(function() {
-    if (scriptThread) {
-        scriptThread.interrupt();
-        addLog("脚本已停止");
-        isRunning = false;
     }
 });
 

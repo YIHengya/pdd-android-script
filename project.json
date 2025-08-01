@@ -1,10 +1,45 @@
 {
-    "name": "新建项目",
-    "main": "main.js",
-    "ignore": [
-        "build"
-    ],
-    "packageName": "com.example",
-    "versionName": "1.0.0",
-    "versionCode": 1
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86",
+    "x86_64"
+  ],
+  "assets": [],
+  "buildDir": "build",
+  "build": {
+    "build_id": null,
+    "build_number": 0,
+    "build_time": 0
+  },
+  "useFeatures": [],
+  "icon": null,
+  "ignoredDirs": [],
+  "encrypt-code": false,
+  "launchConfig": {
+    "displaySplash": true,
+    "hideAccessibilityServices": false,
+    "hideLauncher": false,
+    "hideLogs": false,
+    "stableMode": false,
+    "volumeUpcontrol": false,
+    "permissions": [],
+    "serviceDesc": "使脚本自动操作(点击、长按、滑动等)所需，若关闭则只能执行不涉及自动操作的脚本。",
+    "splashIcon": null,
+    "splashText": "Powered by Autoxjs.com"
+  },
+  "libs": [],
+  "main": "main.js",
+  "name": "拼多多自动化",
+  "outputPath": null,
+  "packageName": "com.script.pdd",
+  "projectDirectory": null,
+  "scripts": {},
+  "signingConfig": {
+    "alias": null,
+    "keystore": null
+  },
+  "sourcePath": null,
+  "versionCode": 1,
+  "versionName": "1.0.0"
 }

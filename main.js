@@ -1,474 +1,701 @@
-// AutoJS 智能选择最便宜SKU脚本 - 拼多多商品页面
-console.log("=== 开始智能选择最便宜SKU ===");
+// 拼多多自动购买脚本
+// 功能：打开拼多多，浏览主页，找到价格低于0.8元的商品并自动购买
 
-// 等待页面加载
-sleep(2000);
+// 检查权限
+function checkPermissions() {
+    // 检查无障碍服务
+    if (!auto.service) {
+        toast("请先开启无障碍服务");
+        auto.waitFor();
+    }
 
-// 存储价格信息的数组
-var priceData = [];
-
-// 滚动到页面底部的函数
-function scrollToBottom() {
-    console.log("滚动到页面底部...");
-    for (var i = 0; i < 5; i++) {
-        scrollDown();
-        sleep(500);
+    // 检查悬浮窗权限
+    if (!floaty.checkPermission()) {
+        toast("请授予悬浮窗权限");
+        floaty.requestPermission();
+        exit();
     }
 }
 
-// 获取当前价格信息的函数
-function getCurrentPrice() {
-    var priceInfo = {};
+// 创建悬浮窗控制界面
+function createFloatingWindow() {
+    var window = floaty.window(
+        <vertical bg="#88000000" padding="4">
+            <horizontal>
+                <text text="PDD购买" textColor="#ffffff" textSize="12sp"/>
+                <button id="closeBtn" text="×" textColor="#ffffff" bg="#44ff0000" w="25" h="25" margin="3 0 0 0"/>
+            </horizontal>
+            <horizontal margin="0 2 0 0">
+                <Switch id="scriptSwitch" text="启动" textColor="#ffffff" textSize="10sp" checked="false"/>
+                <text text="价格:" textColor="#ffffff" textSize="10sp" margin="5 0 0 0"/>
+                <input id="priceInput" text="0.8" textColor="#ffffff" bg="#44ffffff" w="40" h="25" textSize="10sp"/>
+            </horizontal>
+            <ScrollView h="120" w="200">
+                <text id="logText" text="点击启动开始执行" textColor="#ffffff" textSize="10sp" margin="2"/>
+            </ScrollView>
+        </vertical>
+    );
 
-    // 获取主价格（限1件 ¥4.68 格式）
-    var mainPriceElement = textMatches(/限\d+件\s*¥[\d.]+/).findOne(1000);
-    if (mainPriceElement) {
-        priceInfo.mainPrice = mainPriceElement.text();
-    }
+    window.setPosition(50, 100);
+    return window;
+}
 
-    // 获取券前价格
-    var originalPriceElement = textMatches(/券前¥[\d.]+/).findOne(1000);
-    if (originalPriceElement) {
-        priceInfo.originalPrice = originalPriceElement.text();
-    }
-
-    // 获取优惠信息
-    var discountElements = textMatches(/\d+件[\d.]+折|满\d+减\d+/).find();
-    priceInfo.discounts = [];
-    discountElements.forEach(function(element) {
-        priceInfo.discounts.push(element.text());
+// 日志函数
+function addLog(window, message) {
+    var timestamp = new Date().toLocaleTimeString();
+    var logMessage = "[" + timestamp + "] " + message;
+    ui.run(function() {
+        var currentLog = window.logText.getText();
+        var newLog = currentLog + "\n" + logMessage;
+        // 限制日志长度，避免内存溢出
+        var lines = newLog.split('\n');
+        if (lines.length > 20) {
+            lines = lines.slice(-20);
+            newLog = lines.join('\n');
+        }
+        window.logText.setText(newLog);
     });
-
-    // 获取已选择的SKU信息
-    var selectedSkuElement = textMatches(/已选择：.*/).findOne(1000);
-    if (selectedSkuElement) {
-        priceInfo.selectedSku = selectedSkuElement.text();
-    }
-
-    return priceInfo;
+    console.log(logMessage);
 }
 
-// 获取所有型号选项
-function getModelOptions() {
-    var models = [];
-    var modelSection = text("型号").findOne(3000);
-    if (modelSection) {
-        console.log("找到型号区域");
+// 打开拼多多APP
+function openPinduoduo() {
+    try {
+        // 可能的拼多多包名
+        var pddPackages = [
+            "com.xunmeng.pinduoduo",
+            "com.pdd.android",
+            "com.pinduoduo.android"
+        ];
 
-        // 查找型号区域附近的所有可点击文本
-        var allClickableTexts = clickable(true).className("android.widget.TextView").find();
-        allClickableTexts.forEach(function(element) {
-            var elementText = element.text();
-            if (elementText && elementText.trim() !== "" && elementText !== "型号" &&
-                (elementText.indexOf("6A") >= 0 || elementText.indexOf("快充") >= 0)) {
-                // 检查元素位置是否在型号区域附近
-                var modelBounds = modelSection.bounds();
-                var elementBounds = element.bounds();
-                if (Math.abs(elementBounds.top - modelBounds.top) < 200) { // 在型号区域200像素范围内
-                    console.log("找到型号选项: " + elementText);
-                    models.push({
-                        text: elementText,
-                        element: element
-                    });
-                }
-            }
-        });
-    }
-    return models;
-}
+        console.log("准备打开拼多多APP...");
 
-// 选择第一个型号（通常是默认或推荐的）
-function selectFirstModel() {
-    var models = getModelOptions();
-    if (models.length > 0) {
-        console.log("选择第一个型号: " + models[0].text);
-        return clickElement(models[0].element);
-    }
-    return false;
-}
+        // 先回到手机主页，避免悬浮窗干扰
+        console.log("回到手机主页...");
+        home();
+        sleep(2000);
 
-// 选择最后一个型号（如果型号在下面，最后一个可能最便宜）
-function selectLastModel() {
-    var models = getModelOptions();
-    if (models.length > 0) {
-        var lastModel = models[models.length - 1];
-        console.log("选择最后一个型号: " + lastModel.text);
-        return clickElement(lastModel.element);
-    }
-    return false;
-}
+        // 尝试直接启动拼多多APP
+        console.log("启动拼多多APP...");
+        app.launchApp("拼多多");
+        sleep(4000);
 
-// 获取所有款式选项（按位置排序，最下面的通常最便宜）
-function getStyleOptions() {
-    var styles = [];
-    var styleSection = text("款式").findOne(3000);
-    if (styleSection) {
-        console.log("找到款式区域");
+        // 检查是否成功打开
+        var currentPkg = currentPackage();
+        console.log("启动后当前包名: " + currentPkg);
 
-        // 查找款式区域附近的所有可点击文本
-        var allClickableTexts = clickable(true).className("android.widget.TextView").find();
-        var styleBounds = styleSection.bounds();
-
-        allClickableTexts.forEach(function(element) {
-            var elementText = element.text();
-            var elementBounds = element.bounds();
-
-            // 更宽松的匹配条件，包含更多可能的款式文本
-            if (elementText && elementText.trim() !== "" && elementText !== "款式" &&
-                elementBounds.top > styleBounds.top && // 在款式标题下方
-                (elementText.indexOf("米") >= 0 || elementText.indexOf("条") >= 0 ||
-                 elementText.indexOf("【") >= 0 || elementText.indexOf("装") >= 0 ||
-                 elementText.indexOf("红绳") >= 0 || elementText.indexOf("opp") >= 0 ||
-                 elementText.indexOf("礼盒") >= 0 || elementText.indexOf("项链") >= 0)) {
-
-                styles.push({
-                    text: elementText,
-                    element: element,
-                    top: elementBounds.top,
-                    bottom: elementBounds.bottom
-                });
-            }
-        });
-
-        // 按位置排序，最下面的在最后
-        styles.sort(function(a, b) {
-            return a.top - b.top;
-        });
-
-        console.log("找到的款式选项:");
-        styles.forEach(function(style, index) {
-            console.log("款式选项[" + index + "]: " + style.text + " (位置: " + style.top + "-" + style.bottom + ")");
-        });
-    }
-    return styles;
-}
-
-// 选择最便宜的款式（智能识别）
-function selectCheapestStyle() {
-    // 先滚动到底部确保看到所有选项
-    scrollToBottom();
-    sleep(1000);
-
-    var styles = getStyleOptions();
-    if (styles.length > 0) {
-        console.log("分析款式选项，寻找最便宜的...");
-
-        // 优先级：红绳 > opp袋 > 其他按位置排序
-        var cheapestStyle = null;
-
-        // 第一优先级：查找包含"红绳"的选项
-        for (var i = 0; i < styles.length; i++) {
-            if (styles[i].text.indexOf("红绳") >= 0) {
-                cheapestStyle = styles[i];
-                console.log("找到红绳选项（最便宜）: " + cheapestStyle.text);
-                break;
+        for (var i = 0; i < pddPackages.length; i++) {
+            if (currentPkg === pddPackages[i]) {
+                console.log("成功打开拼多多APP: " + currentPkg);
+                return true;
             }
         }
 
-        // 第二优先级：查找包含"opp"的选项
-        if (!cheapestStyle) {
-            for (var j = 0; j < styles.length; j++) {
-                if (styles[j].text.toLowerCase().indexOf("opp") >= 0) {
-                    cheapestStyle = styles[j];
-                    console.log("找到opp袋选项（较便宜）: " + cheapestStyle.text);
+        // 检查是否包含拼多多相关的包名
+        if (currentPkg && (currentPkg.indexOf("pinduoduo") !== -1 || currentPkg.indexOf("pdd") !== -1)) {
+            console.log("检测到拼多多相关APP: " + currentPkg);
+            return true;
+        }
+
+        // 如果直接启动失败，尝试通过包名启动
+        console.log("尝试通过包名启动...");
+        for (var i = 0; i < pddPackages.length; i++) {
+            try {
+                console.log("尝试启动包名: " + pddPackages[i]);
+                app.launchPackage(pddPackages[i]);
+                sleep(4000);
+
+                currentPkg = currentPackage();
+                console.log("包名启动后当前包名: " + currentPkg);
+
+                if (currentPkg === pddPackages[i]) {
+                    console.log("成功通过包名启动: " + pddPackages[i]);
+                    return true;
+                }
+            } catch (e) {
+                console.log("尝试启动包名 " + pddPackages[i] + " 失败: " + e.message);
+            }
+        }
+
+        // 最后尝试：检查是否有拼多多相关的UI元素
+        console.log("尝试检测拼多多UI元素...");
+        sleep(2000);
+
+        // 查找拼多多特有的UI元素
+        var pddElements = [
+            text("拼多多"),
+            text("首页"),
+            text("搜索"),
+            textContains("拼多多"),
+            desc("拼多多"),
+            descContains("拼多多")
+        ];
+
+        for (var i = 0; i < pddElements.length; i++) {
+            if (pddElements[i].exists()) {
+                console.log("通过UI元素检测到拼多多APP");
+                return true;
+            }
+        }
+
+        console.log("所有方法都失败，无法确认拼多多APP已打开");
+        return false;
+    } catch (e) {
+        console.log("启动拼多多失败: " + e.message);
+        return false;
+    }
+}
+
+// 解析价格文本，提取数字
+function parsePrice(priceText) {
+    if (!priceText) return null;
+
+    // 移除所有非数字和小数点的字符
+    var cleanPrice = priceText.replace(/[^\d.]/g, '');
+
+    // 如果包含多个小数点，只保留第一个
+    var parts = cleanPrice.split('.');
+    if (parts.length > 2) {
+        cleanPrice = parts[0] + '.' + parts.slice(1).join('');
+    }
+
+    var price = parseFloat(cleanPrice);
+    return isNaN(price) ? null : price;
+}
+
+// 在主页寻找低价商品
+function findLowPriceProducts(window, targetPrice) {
+    addLog(window, "开始寻找价格低于 " + targetPrice + " 元的商品...");
+
+    var maxScrolls = 10; // 最大滚动次数
+    var scrollCount = 0;
+
+    while (scrollCount < maxScrolls) {
+        addLog(window, "第 " + (scrollCount + 1) + " 次搜索商品...");
+
+        // 寻找当前屏幕上的价格元素
+
+        // 常见的价格相关文本模式
+        var pricePatterns = [
+            /¥\s*\d+\.?\d*/,
+            /￥\s*\d+\.?\d*/,
+            /\d+\.\d+/,
+            /\d+元/
+        ];
+
+        // 寻找包含价格的文本元素
+        var allTexts = textMatches(/.*/).find();
+
+        for (var i = 0; i < allTexts.length; i++) {
+            var element = allTexts[i];
+            var text = element.text();
+
+            if (!text) continue;
+
+            // 检查是否匹配价格模式
+            for (var j = 0; j < pricePatterns.length; j++) {
+                if (pricePatterns[j].test(text)) {
+                    var price = parsePrice(text);
+                    if (price !== null && price > 0 && price < targetPrice) {
+                        addLog(window, "找到低价商品: " + text + " (价格: " + price + " 元)");
+
+                        // 尝试点击商品
+                        try {
+                            // 先尝试点击价格元素本身
+                            if (element.clickable()) {
+                                element.click();
+                                sleep(2000);
+                                return true;
+                            }
+
+                            // 尝试点击父元素
+                            var parent = element.parent();
+                            while (parent && !parent.clickable()) {
+                                parent = parent.parent();
+                            }
+
+                            if (parent && parent.clickable()) {
+                                parent.click();
+                                sleep(2000);
+                                return true;
+                            }
+
+                            // 如果都不行，尝试点击坐标
+                            var bounds = element.bounds();
+                            if (bounds) {
+                                click(bounds.centerX(), bounds.centerY());
+                                sleep(2000);
+                                return true;
+                            }
+                        } catch (e) {
+                            addLog(window, "点击商品失败: " + e.message);
+                        }
+                    }
                     break;
                 }
             }
         }
 
-        // 第三优先级：选择位置最下面的
-        if (!cheapestStyle) {
-            styles.sort(function(a, b) {
-                return a.top - b.top;
-            });
-            cheapestStyle = styles[styles.length - 1];
-            console.log("选择位置最下面的选项: " + cheapestStyle.text);
-        }
-
-        console.log("最终选择: " + cheapestStyle.text + " (位置: " + cheapestStyle.top + ")");
-        return clickElement(cheapestStyle.element);
+        // 向下滚动寻找更多商品
+        addLog(window, "向下滚动寻找更多商品...");
+        scrollDown();
+        sleep(2000);
+        scrollCount++;
     }
+
+    addLog(window, "未找到符合条件的商品");
     return false;
 }
 
-// 点击元素的函数
-function clickElement(element) {
-    try {
-        var bounds = element.bounds();
-        var centerX = bounds.centerX();
-        var centerY = bounds.centerY();
-        console.log("点击坐标: (" + centerX + ", " + centerY + ")");
-        click(centerX, centerY);
-        sleep(1500); // 等待页面更新
-        return true;
-    } catch (e) {
-        console.log("点击失败: " + e);
+// 在商品详情页进行购买操作
+function purchaseProduct(window) {
+    addLog(window, "进入商品详情页，开始购买流程...");
+
+    // 等待页面加载
+    sleep(3000);
+
+    // 寻找购买相关按钮
+    var buyButtons = [
+        "免拼购买",
+        "立即购买",
+        "现在购买",
+        "马上购买",
+        "立即下单",
+        "去购买",
+        "购买"
+    ];
+
+    var buyButtonFound = false;
+
+    // 尝试寻找购买按钮
+    for (var i = 0; i < buyButtons.length; i++) {
+        var buyBtn = text(buyButtons[i]).findOne(2000);
+        if (buyBtn) {
+            addLog(window, "找到购买按钮: " + buyButtons[i]);
+            try {
+                if (buyBtn.clickable()) {
+                    buyBtn.click();
+                    buyButtonFound = true;
+                    break;
+                } else {
+                    // 尝试点击父元素
+                    var parent = buyBtn.parent();
+                    if (parent && parent.clickable()) {
+                        parent.click();
+                        buyButtonFound = true;
+                        break;
+                    }
+                }
+            } catch (e) {
+                addLog(window, "点击购买按钮失败: " + e.message);
+            }
+        }
+    }
+
+    // 如果没找到文字按钮，尝试寻找右下角的按钮
+    if (!buyButtonFound) {
+        addLog(window, "未找到购买按钮，尝试点击右下角区域...");
+        var screenWidth = device.width;
+        var screenHeight = device.height;
+
+        // 右下角区域通常是购买按钮
+        var rightBottomX = screenWidth - 100;
+        var rightBottomY = screenHeight - 150;
+
+        click(rightBottomX, rightBottomY);
+        buyButtonFound = true;
+    }
+
+    if (buyButtonFound) {
+        addLog(window, "已点击购买按钮，等待页面跳转...");
+        sleep(3000);
+
+        // 进入支付流程
+        return proceedToPayment(window);
+    } else {
+        addLog(window, "未找到购买按钮");
         return false;
     }
 }
 
-// 调试函数：显示页面上所有可点击的文本元素
-function debugClickableElements() {
-    console.log("\n=== 调试：显示所有可点击文本元素 ===");
-    var clickableTexts = clickable(true).className("android.widget.TextView").find();
-    clickableTexts.forEach(function(element, index) {
-        var text = element.text();
-        if (text && text.trim() !== "") {
-            console.log("可点击文本[" + index + "]: " + text);
-            var bounds = element.bounds();
-            console.log("  位置: (" + bounds.left + "," + bounds.top + "," + bounds.right + "," + bounds.bottom + ")");
+// 处理支付流程
+function proceedToPayment(window) {
+    addLog(window, "进入支付流程...");
+
+    // 等待支付页面加载
+    sleep(2000);
+
+    // 寻找支付按钮
+    var payButtons = [
+        "立即支付",
+        "确认支付",
+        "去支付",
+        "支付",
+        "提交订单",
+        "确认下单"
+    ];
+
+    var payButtonFound = false;
+
+    for (var i = 0; i < payButtons.length; i++) {
+        // 先尝试精确匹配
+        var payBtn = text(payButtons[i]).findOne(1000);
+
+        // 如果精确匹配失败，尝试包含匹配（用于处理带价格的按钮文本）
+        if (!payBtn) {
+            payBtn = textContains(payButtons[i]).findOne(1000);
         }
-    });
-    console.log("=== 调试结束 ===\n");
-}
 
-// 检测页面布局并智能选择
-function detectLayoutAndSelect() {
-    console.log("检测页面布局...");
+        if (payBtn) {
+            addLog(window, "找到支付按钮: " + payButtons[i] + " (实际文本: " + payBtn.text() + ")");
 
-    var modelSection = text("型号").findOne(2000);
-    var styleSection = text("款式").findOne(2000);
+            // 自动点击支付按钮进入支付页面（仅下单，不实际支付）
+            addLog(window, "自动点击支付按钮进入支付页面...");
 
-    var modelTop = modelSection ? modelSection.bounds().top : -1;
-    var styleTop = styleSection ? styleSection.bounds().top : -1;
+            // 尝试多种点击方式
+            var clickSuccess = false;
 
-    console.log("型号区域位置: " + modelTop);
-    console.log("款式区域位置: " + styleTop);
+            // 方式1：直接点击
+            try {
+                if (payBtn.clickable()) {
+                    payBtn.click();
+                    clickSuccess = true;
+                    addLog(window, "使用直接点击成功");
+                }
+            } catch (e) {
+                addLog(window, "直接点击失败: " + e.message);
+            }
 
-    var selections = [];
-
-    if (modelSection && styleSection) {
-        if (modelTop < styleTop) {
-            // 型号在上，款式在下
-            console.log("布局：型号在上，款式在下");
-            selections.push({
-                name: "型号",
-                action: function() { return selectFirstModel(); }
-            });
-            selections.push({
-                name: "款式",
-                action: function() { return selectCheapestStyle(); }
-            });
-        } else {
-            // 款式在上，型号在下
-            console.log("布局：款式在上，型号在下");
-            selections.push({
-                name: "款式",
-                action: function() { return selectCheapestStyle(); }
-            });
-            selections.push({
-                name: "型号",
-                action: function() { return selectLastModel(); }
-            });
-        }
-    } else if (modelSection) {
-        console.log("只有型号选项");
-        selections.push({
-            name: "型号",
-            action: function() { return selectFirstModel(); }
-        });
-    } else if (styleSection) {
-        console.log("只有款式选项");
-        selections.push({
-            name: "款式",
-            action: function() { return selectCheapestStyle(); }
-        });
-    }
-
-    return selections;
-}
-
-// 主要执行逻辑 - 智能选择最便宜SKU
-console.log("开始智能选择最便宜SKU...");
-
-// 检测布局并获取选择顺序
-var selections = detectLayoutAndSelect();
-
-if (selections.length > 0) {
-    // 按检测到的顺序进行选择
-    for (var i = 0; i < selections.length; i++) {
-        var selection = selections[i];
-        console.log("\n=== 步骤" + (i + 1) + "：选择" + selection.name + " ===");
-
-        var selected = selection.action();
-        if (selected) {
-            console.log(selection.name + "选择成功");
-            sleep(1500); // 等待页面更新
-        } else {
-            console.log("未找到" + selection.name + "选项或选择失败");
-        }
-    }
-} else {
-    console.log("未检测到型号或款式区域");
-}
-
-// 获取最终价格信息
-console.log("\n=== 获取最终价格信息 ===");
-var finalPrice = getCurrentPrice();
-if (finalPrice) {
-    console.log("最便宜SKU的价格信息:");
-    console.log("主价格: " + (finalPrice.mainPrice || "未找到"));
-    console.log("券前价格: " + (finalPrice.originalPrice || "未找到"));
-    if (finalPrice.discounts && finalPrice.discounts.length > 0) {
-        console.log("优惠信息: " + finalPrice.discounts.join(", "));
-    }
-    console.log("完整SKU: " + (finalPrice.selectedSku || "未找到"));
-
-    priceData.push(finalPrice);
-} else {
-    console.log("获取价格信息失败");
-}
-
-// 如果上述方法都失败，尝试备用方案
-if (selections.length === 0) {
-    console.log("\n=== 备用方案：手动查找选项 ===");
-
-    // 先运行调试，看看所有可点击元素
-    debugClickableElements();
-
-    // 查找包含关键词的可点击元素
-    var keywords = ["6A", "米", "条", "装", "快充"];
-    var foundOptions = [];
-
-    keywords.forEach(function(keyword) {
-        var elements = textContains(keyword).clickable(true).find();
-        elements.forEach(function(element) {
-            var text = element.text();
-            if (text && text.trim() !== "") {
-                var exists = foundOptions.some(function(option) {
-                    return option.text === text;
-                });
-                if (!exists) {
-                    foundOptions.push({
-                        text: text,
-                        element: element,
-                        bounds: element.bounds()
-                    });
+            // 方式2：点击父元素
+            if (!clickSuccess) {
+                try {
+                    var parent = payBtn.parent();
+                    if (parent && parent.clickable()) {
+                        parent.click();
+                        clickSuccess = true;
+                        addLog(window, "使用父元素点击成功");
+                    }
+                } catch (e) {
+                    addLog(window, "父元素点击失败: " + e.message);
                 }
             }
-        });
-    });
 
-    if (foundOptions.length > 0) {
-        console.log("找到 " + foundOptions.length + " 个可能的选项:");
-        foundOptions.forEach(function(option, index) {
-            console.log("[" + index + "] " + option.text + " (位置: " + option.bounds.top + ")");
-        });
+            // 方式3：使用坐标点击
+            if (!clickSuccess) {
+                try {
+                    var bounds = payBtn.bounds();
+                    if (bounds) {
+                        var centerX = bounds.centerX();
+                        var centerY = bounds.centerY();
+                        addLog(window, "使用坐标点击: (" + centerX + ", " + centerY + ")");
+                        click(centerX, centerY);
+                        clickSuccess = true;
+                        addLog(window, "使用坐标点击成功");
+                    }
+                } catch (e) {
+                    addLog(window, "坐标点击失败: " + e.message);
+                }
+            }
 
-        // 选择位置最靠下的选项（通常最便宜）
-        foundOptions.sort(function(a, b) {
-            return b.bounds.top - a.bounds.top;
-        });
+            if (clickSuccess) {
+                addLog(window, "已点击支付按钮，等待支付页面加载...");
+                sleep(5000); // 增加等待时间，确保支付页面完全加载
 
-        var cheapestOption = foundOptions[0];
-        console.log("选择最下方的选项: " + cheapestOption.text);
-        if (clickElement(cheapestOption.element)) {
-            var price = getCurrentPrice();
-            price.selectedOption = cheapestOption.text;
-            priceData.push(price);
-            console.log("备用方案价格信息: " + JSON.stringify(price, null, 2));
+                // 进入支付页面后，开始返回流程
+                addLog(window, "支付页面已加载，开始返回到主页...");
+                returnToHome(window);
+            } else {
+                addLog(window, "所有点击方式都失败，无法点击支付按钮");
+            }
+
+            payButtonFound = true;
+            break;
         }
+    }
+
+    if (!payButtonFound) {
+        // 尝试通过className和文本模式查找支付按钮
+        addLog(window, "尝试其他方式查找支付按钮...");
+
+        // 查找包含价格的立即支付按钮
+        var payBtnWithPrice = className("android.widget.TextView").textMatches(/立即支付.*¥.*/).findOne(2000);
+        if (payBtnWithPrice) {
+            addLog(window, "找到带价格的支付按钮: " + payBtnWithPrice.text());
+            addLog(window, "自动点击支付按钮进入支付页面...");
+
+            // 使用坐标点击带价格的支付按钮
+            var clickSuccess = false;
+            try {
+                var bounds = payBtnWithPrice.bounds();
+                if (bounds) {
+                    var centerX = bounds.centerX();
+                    var centerY = bounds.centerY();
+                    addLog(window, "使用坐标点击带价格按钮: (" + centerX + ", " + centerY + ")");
+                    click(centerX, centerY);
+                    clickSuccess = true;
+                    addLog(window, "使用坐标点击成功");
+                }
+            } catch (e) {
+                addLog(window, "坐标点击失败: " + e.message);
+                // 备用方案：直接点击
+                try {
+                    payBtnWithPrice.click();
+                    clickSuccess = true;
+                    addLog(window, "使用直接点击成功");
+                } catch (e2) {
+                    addLog(window, "直接点击也失败: " + e2.message);
+                }
+            }
+
+            if (clickSuccess) {
+                addLog(window, "已点击支付按钮，等待支付页面加载...");
+                sleep(5000);
+                addLog(window, "支付页面已加载，开始返回到主页...");
+                returnToHome(window);
+            }
+            payButtonFound = true;
+        } else {
+            // 查找任何包含"支付"的按钮
+            var anyPayBtn = textContains("支付").findOne(2000);
+            if (anyPayBtn) {
+                addLog(window, "找到包含'支付'的按钮: " + anyPayBtn.text());
+                addLog(window, "自动点击支付按钮进入支付页面...");
+
+                // 使用坐标点击任意支付按钮
+                var clickSuccess = false;
+                try {
+                    var bounds = anyPayBtn.bounds();
+                    if (bounds) {
+                        var centerX = bounds.centerX();
+                        var centerY = bounds.centerY();
+                        addLog(window, "使用坐标点击支付按钮: (" + centerX + ", " + centerY + ")");
+                        click(centerX, centerY);
+                        clickSuccess = true;
+                        addLog(window, "使用坐标点击成功");
+                    }
+                } catch (e) {
+                    addLog(window, "坐标点击失败: " + e.message);
+                    // 备用方案：直接点击
+                    try {
+                        anyPayBtn.click();
+                        clickSuccess = true;
+                        addLog(window, "使用直接点击成功");
+                    } catch (e2) {
+                        addLog(window, "直接点击也失败: " + e2.message);
+                    }
+                }
+
+                if (clickSuccess) {
+                    addLog(window, "已点击支付按钮，等待支付页面加载...");
+                    sleep(5000);
+                    addLog(window, "支付页面已加载，开始返回到主页...");
+                    returnToHome(window);
+                }
+                payButtonFound = true;
+            }
+        }
+
+        if (!payButtonFound) {
+            addLog(window, "未找到支付按钮，可能需要手动操作");
+        }
+    }
+
+    return payButtonFound;
+}
+
+// 返回到主页的函数
+function returnToHome(window) {
+    addLog(window, "开始返回到主页流程...");
+
+    var maxRetries = 10; // 最多尝试10次返回
+    var retryCount = 0;
+
+    while (retryCount < maxRetries) {
+        retryCount++;
+        addLog(window, "第 " + retryCount + " 次尝试返回...");
+
+        // 按返回键
+        back();
+        sleep(2000);
+
+        // 检查是否已经回到主页
+        var currentPkg = currentPackage();
+        addLog(window, "当前包名: " + currentPkg);
+
+        // 检查是否回到了拼多多主页
+        var homeIndicators = [
+            text("首页"),
+            text("搜索"),
+            text("拼多多"),
+            textContains("首页"),
+            textContains("搜索"),
+            desc("首页"),
+            desc("搜索")
+        ];
+
+        var isAtHome = false;
+        for (var i = 0; i < homeIndicators.length; i++) {
+            if (homeIndicators[i].exists()) {
+                addLog(window, "检测到主页元素: " + homeIndicators[i]);
+                isAtHome = true;
+                break;
+            }
+        }
+
+        if (isAtHome) {
+            addLog(window, "成功返回到拼多多主页！");
+            break;
+        }
+
+        // 如果不在拼多多APP中，说明已经退出了APP
+        var pddPackages = [
+            "com.xunmeng.pinduoduo",
+            "com.pdd.android",
+            "com.pinduoduo.android"
+        ];
+
+        var isInPDD = false;
+        for (var i = 0; i < pddPackages.length; i++) {
+            if (currentPkg === pddPackages[i]) {
+                isInPDD = true;
+                break;
+            }
+        }
+
+        if (!isInPDD) {
+            addLog(window, "已退出拼多多APP，任务完成");
+            break;
+        }
+
+        addLog(window, "还未回到主页，继续返回...");
+    }
+
+    if (retryCount >= maxRetries) {
+        addLog(window, "返回主页超时，可能需要手动操作");
+    }
+
+    addLog(window, "返回流程结束");
+}
+
+// 主执行函数
+function executePDDAutoBuy(window, targetPrice) {
+    try {
+        addLog(window, "开始执行拼多多自动购买脚本...");
+
+        // 1. 打开拼多多APP
+        addLog(window, "正在打开拼多多APP...");
+        if (!openPinduoduo()) {
+            addLog(window, "无法打开拼多多APP，请检查是否已安装");
+            return false;
+        }
+
+        addLog(window, "成功打开拼多多APP");
+        sleep(3000);
+
+        // 2. 确保在主页
+        addLog(window, "确保在主页...");
+        // 尝试点击首页按钮
+        var homeBtn = text("首页").findOne(2000);
+        if (homeBtn) {
+            homeBtn.click();
+            sleep(2000);
+        }
+
+        // 3. 寻找低价商品
+        if (findLowPriceProducts(window, targetPrice)) {
+            addLog(window, "成功找到并点击低价商品");
+
+            // 4. 进行购买操作
+            if (purchaseProduct(window)) {
+                addLog(window, "购买流程已启动");
+                return true;
+            } else {
+                addLog(window, "购买流程失败");
+                return false;
+            }
+        } else {
+            addLog(window, "未找到符合条件的商品");
+            return false;
+        }
+
+    } catch (e) {
+        addLog(window, "脚本执行出错: " + e.message);
+        return false;
     }
 }
 
-// 点击确定按钮
-console.log("\n=== 点击确定按钮 ===");
+// 主程序入口
+function main() {
+    // 检查权限
+    checkPermissions();
 
-function clickConfirmButton() {
-    // 查找确定按钮的多种可能文本
-    var confirmTexts = ["确定", "确认", "确认款式", "确定款式", "立即购买", "加入购物车"];
+    // 创建悬浮窗
+    var window = createFloatingWindow();
 
-    for (var i = 0; i < confirmTexts.length; i++) {
-        var confirmText = confirmTexts[i];
-        console.log("查找按钮文本: " + confirmText);
+    // 脚本运行状态
+    var isRunning = false;
+    var scriptThread = null;
 
-        // 方法1：直接查找文本
-        var confirmBtn = text(confirmText).findOne(2000);
-        if (confirmBtn) {
-            console.log("找到确定按钮: " + confirmText);
-            if (clickElement(confirmBtn)) {
-                console.log("成功点击确定按钮");
-                return true;
+    // 开关事件处理
+    window.scriptSwitch.setOnCheckedChangeListener(function(_, checked) {
+        if (checked) {
+            // 开关打开，开始执行脚本
+            if (isRunning) {
+                addLog(window, "脚本正在运行中...");
+                return;
             }
-        }
 
-        // 方法2：查找包含该文本的按钮
-        var confirmBtnContains = textContains(confirmText).findOne(2000);
-        if (confirmBtnContains) {
-            console.log("找到包含'" + confirmText + "'的按钮: " + confirmBtnContains.text());
-            if (clickElement(confirmBtnContains)) {
-                console.log("成功点击确定按钮");
-                return true;
+            // 获取目标价格
+            var targetPriceText = window.priceInput.getText().toString();
+            var targetPrice = parseFloat(targetPriceText);
+
+            if (isNaN(targetPrice) || targetPrice <= 0) {
+                addLog(window, "请输入有效的目标价格");
+                window.scriptSwitch.setChecked(false);
+                return;
             }
-        }
-    }
 
-    // 方法3：查找页面底部的按钮（确定按钮通常在底部）
-    console.log("尝试查找页面底部的按钮...");
-    var allButtons = clickable(true).find();
-    var bottomButtons = [];
+            addLog(window, "开始执行脚本，目标价格: " + targetPrice + " 元");
+            isRunning = true;
 
-    // 获取屏幕高度
-    var screenHeight = device.height;
-
-    allButtons.forEach(function(button) {
-        var bounds = button.bounds();
-        var buttonText = button.text() || button.desc() || "";
-
-        // 如果按钮在屏幕下半部分，且包含可能的确定文本
-        if (bounds.top > screenHeight * 0.6 && buttonText.trim() !== "") {
-            bottomButtons.push({
-                element: button,
-                text: buttonText,
-                top: bounds.top
+            // 在新线程中执行脚本
+            scriptThread = threads.start(function() {
+                try {
+                    executePDDAutoBuy(window, targetPrice);
+                } catch (e) {
+                    addLog(window, "脚本执行出错: " + e.message);
+                } finally {
+                    isRunning = false;
+                    // 脚本结束时自动关闭开关
+                    ui.run(function() {
+                        window.scriptSwitch.setChecked(false);
+                    });
+                }
             });
+        } else {
+            // 开关关闭，停止脚本
+            if (scriptThread) {
+                scriptThread.interrupt();
+                addLog(window, "脚本已停止");
+                isRunning = false;
+            }
         }
     });
 
-    // 按位置排序，最下面的优先
-    bottomButtons.sort(function(a, b) {
-        return b.top - a.top;
+    // 关闭按钮事件
+    window.closeBtn.click(function() {
+        if (scriptThread) {
+            scriptThread.interrupt();
+        }
+        window.close();
+        exit();
     });
 
-    // 尝试点击最下面的几个按钮
-    for (var j = 0; j < Math.min(3, bottomButtons.length); j++) {
-        var btn = bottomButtons[j];
-        console.log("尝试点击底部按钮: " + btn.text + " (位置: " + btn.top + ")");
-        if (clickElement(btn.element)) {
-            console.log("成功点击底部按钮");
-            return true;
-        }
-    }
-
-    return false;
+    // 保持悬浮窗运行
+    setInterval(function() {
+        // 空函数，保持脚本运行
+    }, 1000);
 }
 
-// 执行点击确定
-var confirmClicked = clickConfirmButton();
-if (confirmClicked) {
-    console.log("确定按钮点击成功！");
-    sleep(2000); // 等待页面跳转
-} else {
-    console.log("未找到确定按钮，请手动点击");
-}
-
-// 输出汇总结果
-console.log("\n=== 最便宜SKU选择完成，汇总结果 ===");
-if (priceData.length > 0) {
-    var finalData = priceData[priceData.length - 1]; // 最后一个是最终选择的
-    console.log("已选择最便宜的SKU:");
-    if (finalData.model) console.log("型号: " + finalData.model);
-    if (finalData.style) console.log("款式: " + finalData.style);
-    if (finalData.mainPrice) console.log("主价格: " + finalData.mainPrice);
-    if (finalData.originalPrice) console.log("券前价格: " + finalData.originalPrice);
-    if (finalData.discounts && finalData.discounts.length > 0) {
-        console.log("优惠信息: " + finalData.discounts.join(", "));
-    }
-    if (finalData.selectedSku) console.log("完整SKU: " + finalData.selectedSku);
-
-    console.log("\n✅ 最便宜SKU已选择" + (confirmClicked ? "并确认" : "，请手动点击确定"));
-} else {
-    console.log("未获取到价格信息");
-}
-
-console.log("\n=== 脚本执行完成 ===");
+// 启动主程序
+main();
