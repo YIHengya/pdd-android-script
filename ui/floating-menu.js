@@ -13,6 +13,7 @@ function FloatingMenu() {
     this.onStartCallback = null;
     this.onStopCallback = null;
     this.onModeChangeCallback = null;
+    this.onUserInfoCallback = null;
 }
 
 /**
@@ -53,12 +54,12 @@ FloatingMenu.prototype.create = function() {
                     </horizontal>
                     
                     <horizontal margin="0 5dp 0 0" gravity="center">
-                        <button id="settingsBtn" text="设置" textColor="#ffffff" bg="#9C27B0" 
-                                w="70dp" h="35dp" margin="3dp" textSize="11sp"/>
-                        <button id="helpBtn" text="帮助" textColor="#ffffff" bg="#607D8B" 
-                                w="70dp" h="35dp" margin="3dp" textSize="11sp"/>
-                        <button id="aboutBtn" text="关于" textColor="#ffffff" bg="#795548" 
-                                w="70dp" h="35dp" margin="3dp" textSize="11sp"/>
+                        <button id="userInfoBtn" text="用户信息" textColor="#ffffff" bg="#4CAF50"
+                                w="80dp" h="35dp" margin="2dp" textSize="10sp"/>
+                        <button id="settingsBtn" text="设置" textColor="#ffffff" bg="#9C27B0"
+                                w="60dp" h="35dp" margin="2dp" textSize="10sp"/>
+                        <button id="helpBtn" text="帮助" textColor="#ffffff" bg="#607D8B"
+                                w="60dp" h="35dp" margin="2dp" textSize="10sp"/>
                     </horizontal>
                     
                     <ScrollView h="80dp" w="*" margin="0 5dp 0 0" bg="#f9f9f9">
@@ -111,16 +112,27 @@ FloatingMenu.prototype.setupEventHandlers = function() {
         // 这里可以添加设置功能
     });
 
+    // 用户信息按钮
+    this.menuWindow.userInfoBtn.click(function() {
+        self.addLog("正在获取用户信息...");
+        if (self.onUserInfoCallback) {
+            self.onUserInfoCallback(self.menuWindow);
+        } else {
+            self.addLog("用户信息功能未初始化");
+        }
+    });
+
+    // 设置按钮
+    this.menuWindow.settingsBtn.click(function() {
+        self.addLog("设置功能开发中...");
+        // 这里可以添加设置功能
+    });
+
     // 帮助按钮
     this.menuWindow.helpBtn.click(function() {
         self.addLog("帮助: 选择模式后输入价格点击启动");
+        self.addLog("用户信息: 点击获取当前账号和收件人信息");
         // 这里可以添加帮助功能
-    });
-
-    // 关于按钮
-    this.menuWindow.aboutBtn.click(function() {
-        self.addLog("PDD自动脚本 v1.0");
-        // 这里可以添加关于信息
     });
 };
 
@@ -314,6 +326,10 @@ FloatingMenu.prototype.setOnStopCallback = function(callback) {
 
 FloatingMenu.prototype.setOnModeChangeCallback = function(callback) {
     this.onModeChangeCallback = callback;
+};
+
+FloatingMenu.prototype.setOnUserInfoCallback = function(callback) {
+    this.onUserInfoCallback = callback;
 };
 
 /**

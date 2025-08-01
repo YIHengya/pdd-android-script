@@ -269,6 +269,26 @@ FloatingWindow.prototype.setOnStopCallback = function(callback) {
 };
 
 /**
+ * 设置用户信息回调
+ * @param {Function} callback 回调函数
+ */
+FloatingWindow.prototype.setOnUserInfoCallback = function(callback) {
+    if (this.floatingMenu) {
+        this.floatingMenu.setOnUserInfoCallback(callback);
+    }
+};
+
+/**
+ * 设置用户信息回调
+ * @param {Function} callback 回调函数
+ */
+FloatingWindow.prototype.setOnUserInfoCallback = function(callback) {
+    if (this.floatingMenu) {
+        this.floatingMenu.setOnUserInfoCallback(callback);
+    }
+};
+
+/**
  * 关闭悬浮球
  */
 FloatingWindow.prototype.close = function() {
