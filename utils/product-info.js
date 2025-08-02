@@ -71,34 +71,14 @@ ProductInfoExtractor.prototype.getShopName = function(window) {
     try {
         logger.addLog(window, "开始获取店铺名称...");
 
-        // 方法1: 优先通过进店按钮附近查找
+        // 只通过进店按钮和已拼按钮来获取店铺名称
         var shopName = this.findShopNameNearEnterButton(window);
         if (shopName) {
-            logger.addLog(window, "通过进店按钮附近找到店铺: " + shopName);
+            logger.addLog(window, "通过进店按钮和已拼按钮找到店铺: " + shopName);
             return shopName;
         }
 
-        // 方法2: 直接查找店铺相关元素
-        shopName = this.findShopNameDirect(window);
-        if (shopName) {
-            return shopName;
-        }
-
-        // 方法3: 通过下滑查找店铺信息
-        logger.addLog(window, "直接查找失败，尝试下滑查找店铺信息...");
-        shopName = this.findShopNameByScrolling(window);
-        if (shopName) {
-            return shopName;
-        }
-
-        // 方法4: 通过RecyclerView遍历查找
-        logger.addLog(window, "下滑查找失败，尝试通过RecyclerView查找...");
-        shopName = this.findShopNameInRecyclerView(window);
-        if (shopName) {
-            return shopName;
-        }
-
-        logger.addLog(window, "所有方法都失败，使用默认店铺名称");
+        logger.addLog(window, "未能通过进店按钮和已拼按钮找到店铺名称，使用默认店铺名称");
         return "未知店铺";
 
     } catch (e) {
@@ -116,11 +96,25 @@ ProductInfoExtractor.prototype.findShopNameNearEnterButton = function(window) {
     try {
         logger.addLog(window, "查找进店按钮附近的店铺名称...");
 
-        // 先找到进店按钮，再在其附近查找店铺名称
-        var shopName = this.findShopNameNearEnterButtonAndYipin(window);
-        if (shopName) {
-            logger.addLog(window, "通过进店+已拼找到店铺: " + shopName);
-            return shopName;
+        var maxScrolls = 3;
+        var scrollCount = 0;
+
+        while (scrollCount <= maxScrolls) {
+            // 第一次不滑动，直接查找当前页面
+            if (scrollCount > 0) {
+                logger.addLog(window, "第 " + scrollCount + " 次下滑查找店铺...");
+                scrollDown();
+                sleep(1500);
+            }
+
+            // 先找到进店按钮，再在其附近查找店铺名称
+            var shopName = this.findShopNameNearEnterButtonAndYipin(window);
+            if (shopName) {
+                logger.addLog(window, "通过进店+已拼找到店铺: " + shopName);
+                return shopName;
+            }
+
+            scrollCount++;
         }
 
         return null;
@@ -179,491 +173,23 @@ ProductInfoExtractor.prototype.findShopNameNearEnterButtonAndYipin = function(wi
     }
 };
 
-/**
- * 通过关键词查找店铺名称
- * @param {Object} window 悬浮窗对象
- * @param {string} keyword 关键词（如"已拼"、"粉丝"）
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findShopNameByKeyword = function(window, keyword) {
-    try {
-        // 查找包含关键词的元素
-        var keywordElements = textContains(keyword).find();
-
-        for (var i = 0; i < keywordElements.length; i++) {
-            var element = keywordElements[i];
-            if (element) {
-                logger.addLog(window, "找到'" + keyword + "'元素: " + element.text());
-
-                // 在同一个父容器中查找店铺名称
-                var parent = element.parent();
-                if (parent) {
-                    var shopName = this.findShopNameInContainerExcluding(window, parent, element);
-                    if (shopName) {
-                        return shopName;
-                    }
-                }
-            }
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "通过'" + keyword + "'查找店铺名称失败: " + e.message);
-        return null;
-    }
-};
-
-/**
- * 简化的RecyclerView店铺名称查找
- * @param {Object} window 悬浮窗对象
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findShopNameInRecyclerViewSimple = function(window) {
-    try {
-        var recyclerView = id("pdd").className("android.support.v7.widget.RecyclerView").scrollable(true).findOne(2000);
-        if (!recyclerView) {
-            return null;
-        }
-
-        logger.addLog(window, "找到RecyclerView，开始查找店铺名称...");
-        var children = recyclerView.children();
-
-        for (var i = 0; i < children.length; i++) {
-            var child = children[i];
-
-            // 基于你的代码思路：查找包含"已拼XX件"的元素
-            var yipinElement = child.findOne(textMatches(/已拼\d+件/));
-            if (yipinElement) {
-                logger.addLog(window, "找到'已拼XX件'元素: " + yipinElement.text());
-
-                // 在同一个容器中查找所有文本元素
-                var allTexts = child.find(className("android.widget.TextView"));
-                for (var j = 0; j < allTexts.length; j++) {
-                    var textElement = allTexts[j];
-                    var text = textElement.text();
-                    if (text && text.trim().length > 0) {
-                        text = text.trim();
-
-                        // 跳过"已拼XX件"、"粉丝"、"进店"等文本
-                        if (text.indexOf("已拼") !== -1 ||
-                            text.indexOf("粉丝") !== -1 ||
-                            text.indexOf("进店") !== -1 ||
-                            text.indexOf("件") !== -1) {
-                            continue;
-                        }
-
-                        // 检查是否是有效的店铺名称
-                        if (this.isValidShopName(text)) {
-                            logger.addLog(window, "在'已拼'附近找到店铺名称: " + text);
-                            return text;
-                        }
-                    }
-                }
-            }
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "简化RecyclerView查找失败: " + e.message);
-        return null;
-    }
-};
-
-/**
- * 直接查找店铺名称
- * @param {Object} window 悬浮窗对象
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findShopNameDirect = function(window) {
-    try {
-        // 方法1: 查找具体的店铺名称（包含店铺关键词的完整名称）
-        var specificShopName = this.findSpecificShopName(window);
-        if (specificShopName) {
-            return specificShopName;
-        }
-
-        // 方法2: 通过常见选择器查找
-        var shopSelectors = [
-            id("shop_name"),
-            id("store_name"),
-            id("pdd"),
-            className("android.widget.TextView").textMatches(/.*旗舰店$/),
-            className("android.widget.TextView").textMatches(/.*专营店$/),
-            className("android.widget.TextView").textMatches(/.*官方店$/),
-            className("android.widget.TextView").textMatches(/.*数码店$/),
-            className("android.widget.TextView").textMatches(/.*店$/),
-        ];
-
-        for (var i = 0; i < shopSelectors.length; i++) {
-            var shopElement = shopSelectors[i].findOne(1000);
-            if (shopElement) {
-                var shopName = shopElement.text().trim();
-                if (this.isValidShopName(shopName)) {
-                    logger.addLog(window, "通过选择器找到店铺名称: " + shopName);
-                    return shopName;
-                }
-            }
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "直接查找店铺名称失败: " + e.message);
-        return null;
-    }
-};
-
-/**
- * 查找具体的店铺名称
- * @param {Object} window 悬浮窗对象
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findSpecificShopName = function(window) {
-    try {
-        // 查找所有文本元素
-        var allTexts = textMatches(/.*/).find();
-        var candidateShops = [];
-
-        for (var i = 0; i < allTexts.length; i++) {
-            var text = allTexts[i].text();
-            if (!text) continue;
-
-            text = text.trim();
-
-            // 查找包含店铺关键词的文本
-            if ((text.indexOf("旗舰店") !== -1 ||
-                 text.indexOf("专营店") !== -1 ||
-                 text.indexOf("官方店") !== -1 ||
-                 text.indexOf("数码店") !== -1) &&
-                text.length >= 4 && text.length <= 30) {
-
-                candidateShops.push({
-                    name: text,
-                    priority: this.getShopNamePriority(text)
-                });
-            }
-        }
-
-        // 按优先级排序，选择最佳的店铺名称
-        if (candidateShops.length > 0) {
-            candidateShops.sort(function(a, b) {
-                return b.priority - a.priority;
-            });
-
-            var bestShop = candidateShops[0].name;
-            logger.addLog(window, "找到具体店铺名称: " + bestShop);
-            return bestShop;
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "查找具体店铺名称失败: " + e.message);
-        return null;
-    }
-};
-
-/**
- * 获取店铺名称的优先级分数
- * @param {string} shopName 店铺名称
- * @returns {number} 优先级分数
- */
-ProductInfoExtractor.prototype.getShopNamePriority = function(shopName) {
-    var score = 0;
-
-    // 长度适中的店铺名称优先级更高
-    if (shopName.length >= 6 && shopName.length <= 20) {
-        score += 10;
-    }
-
-    // 包含具体店铺类型的优先级更高
-    if (shopName.indexOf("旗舰店") !== -1) {
-        score += 15;
-    } else if (shopName.indexOf("专营店") !== -1) {
-        score += 12;
-    } else if (shopName.indexOf("官方店") !== -1) {
-        score += 10;
-    } else if (shopName.indexOf("数码店") !== -1) {
-        score += 8;
-    }
-
-    // 包含数字或字母的店铺名称优先级更高（通常更具体）
-    if (/[0-9a-zA-Z]/.test(shopName)) {
-        score += 5;
-    }
-
-    // 包含中文字符的优先级更高
-    if (/[\u4e00-\u9fa5]/.test(shopName)) {
-        score += 5;
-    }
-
-    return score;
-};
-
-/**
- * 通过下滑查找店铺名称
- * @param {Object} window 悬浮窗对象
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findShopNameByScrolling = function(window) {
-    try {
-        var maxScrolls = 3;
-        var scrollCount = 0;
-
-        while (scrollCount < maxScrolls) {
-            scrollCount++;
-            logger.addLog(window, "第 " + scrollCount + " 次下滑查找店铺...");
-
-            // 下滑页面
-            scrollDown();
-            sleep(1500);
-
-            // 查找店铺相关信息
-            var shopName = this.findShopNameDirect(window);
-            if (shopName) {
-                logger.addLog(window, "下滑后找到店铺: " + shopName);
-                return shopName;
-            }
-
-            // 查找包含"店"字的文本
-            var allTexts = textMatches(/.*店.*/).find();
-            for (var i = 0; i < allTexts.length; i++) {
-                var text = allTexts[i].text().trim();
-                if (this.isValidShopName(text)) {
-                    logger.addLog(window, "下滑后通过模糊匹配找到店铺: " + text);
-                    return text;
-                }
-            }
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "下滑查找店铺名称失败: " + e.message);
-        return null;
-    }
-};
-
-/**
- * 通过RecyclerView查找店铺名称
- * @param {Object} window 悬浮窗对象
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findShopNameInRecyclerView = function(window) {
-    try {
-        // 查找RecyclerView
-        var recyclerViews = [
-            id("pdd").className("android.support.v7.widget.RecyclerView"),
-            className("android.support.v7.widget.RecyclerView"),
-            className("androidx.recyclerview.widget.RecyclerView")
-        ];
-
-        for (var i = 0; i < recyclerViews.length; i++) {
-            var recyclerView = recyclerViews[i].findOne(2000);
-            if (recyclerView) {
-                logger.addLog(window, "找到RecyclerView，开始遍历子元素...");
-
-                var children = recyclerView.children();
-                for (var j = 0; j < children.length; j++) {
-                    var child = children[j];
-
-                    // 方法1: 查找进店按钮附近的店铺名称
-                    var shopName = this.findShopNameNearEnterMall(window, child);
-                    if (shopName) {
-                        return shopName;
-                    }
-
-                    // 方法2: 在子元素中查找店铺信息
-                    var target = child.findOne(id("pdd"));
-                    if (target) {
-                        var shopName = target.text();
-                        if (this.isValidShopName(shopName)) {
-                            logger.addLog(window, "在RecyclerView中找到店铺: " + shopName);
-                            return shopName;
-                        }
-                    }
-
-                    // 方法3: 查找子元素中的店铺相关文本
-                    var shopTexts = child.find(textMatches(/.*店.*/));
-                    for (var k = 0; k < shopTexts.length; k++) {
-                        var shopText = shopTexts[k].text().trim();
-                        if (this.isValidShopName(shopText)) {
-                            logger.addLog(window, "在RecyclerView子元素中找到店铺: " + shopText);
-                            return shopText;
-                        }
-                    }
-                }
-            }
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "RecyclerView查找店铺名称失败: " + e.message);
-        return null;
-    }
-};
-
-/**
- * 在进店按钮附近查找店铺名称
- * @param {Object} window 悬浮窗对象
- * @param {Object} child RecyclerView的子元素
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findShopNameNearEnterMall = function(window, child) {
-    try {
-        // 查找进店按钮
-        var enterMallButton = this.findEnterMallButton(child);
-
-        if (enterMallButton) {
-            logger.addLog(window, "找到进店按钮，查找附近的店铺名称...");
-
-            // 方法1: 在进店按钮的父容器中查找店铺名称（排除进店按钮本身）
-            var parent = enterMallButton.parent();
-            if (parent) {
-                var shopName = this.findShopNameInContainerExcluding(window, parent, enterMallButton);
-                if (shopName) {
-                    logger.addLog(window, "在进店按钮父容器中找到店铺: " + shopName);
-                    return shopName;
-                }
-            }
-
-            // 方法2: 在更高层级的父容器中查找
-            if (parent && parent.parent()) {
-                var grandParent = parent.parent();
-                var shopName = this.findShopNameInContainerExcluding(window, grandParent, enterMallButton);
-                if (shopName) {
-                    logger.addLog(window, "在进店按钮祖父容器中找到店铺: " + shopName);
-                    return shopName;
-                }
-            }
-
-            // 方法3: 在整个子容器中查找（排除进店按钮）
-            var shopName = this.findShopNameInContainerExcluding(window, child, enterMallButton);
-            if (shopName) {
-                logger.addLog(window, "在子容器中找到店铺: " + shopName);
-                return shopName;
-            }
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "在进店按钮附近查找店铺名称失败: " + e.message);
-        return null;
-    }
-};
-
-/**
- * 查找进店按钮
- * @param {Object} container 容器元素
- * @returns {Object|null} 进店按钮元素
- */
-ProductInfoExtractor.prototype.findEnterMallButton = function(container) {
-    try {
-        // 尝试多种进店按钮的查找方式
-        var enterMallSelectors = [
-            id("tv_enter_mall"),
-            id("enter_mall"),
-            id("btn_enter_mall"),
-            text("进店"),
-            textContains("进店")
-        ];
-
-        for (var i = 0; i < enterMallSelectors.length; i++) {
-            var enterMallButton = container.findOne(enterMallSelectors[i]);
-            if (enterMallButton) {
-                return enterMallButton;
-            }
-        }
-
-        return null;
-    } catch (e) {
-        return null;
-    }
-};
-
-/**
- * 在指定容器中查找店铺名称（排除指定元素）
- * @param {Object} window 悬浮窗对象
- * @param {Object} container 容器元素
- * @param {Object} excludeElement 要排除的元素
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findShopNameInContainerExcluding = function(window, container, excludeElement) {
-    try {
-        // 查找容器中所有的文本元素
-        var textElements = container.find(className("android.widget.TextView"));
-        var candidates = [];
-
-        for (var i = 0; i < textElements.length; i++) {
-            var textElement = textElements[i];
-
-            // 跳过要排除的元素
-            if (excludeElement && textElement.equals && textElement.equals(excludeElement)) {
-                continue;
-            }
-
-            var text = textElement.text();
-            if (text && text.trim().length > 0) {
-                text = text.trim();
-
-                // 排除"进店"相关的文本
-                if (text === "进店" || text === "进店铺" || text.indexOf("进店") !== -1) {
-                    continue;
-                }
-
-                // 检查是否是有效的店铺名称
-                if (this.isValidShopName(text)) {
-                    candidates.push({
-                        name: text,
-                        priority: this.getShopNamePriority(text)
-                    });
-                }
-            }
-        }
-
-        // 如果找到候选店铺名，返回优先级最高的
-        if (candidates.length > 0) {
-            candidates.sort(function(a, b) {
-                return b.priority - a.priority;
-            });
-            return candidates[0].name;
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "在容器中查找店铺名称失败: " + e.message);
-        return null;
-    }
-};
-
-/**
- * 在指定容器中查找店铺名称
- * @param {Object} window 悬浮窗对象
- * @param {Object} container 容器元素
- * @returns {string|null} 店铺名称
- */
-ProductInfoExtractor.prototype.findShopNameInContainer = function(window, container) {
-    try {
-        // 查找容器中所有的文本元素
-        var textElements = container.find(className("android.widget.TextView"));
-
-        for (var i = 0; i < textElements.length; i++) {
-            var textElement = textElements[i];
-            var text = textElement.text();
-
-            if (text && text.trim().length > 0) {
-                text = text.trim();
-
-                // 检查是否是有效的店铺名称
-                if (this.isValidShopName(text)) {
-                    return text;
-                }
-            }
-        }
-
-        return null;
-    } catch (e) {
-        logger.addLog(window, "在容器中查找店铺名称失败: " + e.message);
-        return null;
-    }
-};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * 在容器中查找真正的店铺名称
@@ -685,22 +211,16 @@ ProductInfoExtractor.prototype.findRealShopNameInContainer = function(window, co
 
                 // 排除明确的无关文本
                 if (this.isRealShopName(text)) {
-                    candidates.push({
-                        name: text,
-                        priority: this.getShopNamePriority(text)
-                    });
+                    candidates.push(text);
                     logger.addLog(window, "候选店铺名称: " + text);
                 }
             }
         }
 
-        // 返回优先级最高的候选店铺名称
+        // 返回第一个找到的有效店铺名称
         if (candidates.length > 0) {
-            candidates.sort(function(a, b) {
-                return b.priority - a.priority;
-            });
-            logger.addLog(window, "选择店铺名称: " + candidates[0].name);
-            return candidates[0].name;
+            logger.addLog(window, "选择店铺名称: " + candidates[0]);
+            return candidates[0];
         }
 
         return null;
