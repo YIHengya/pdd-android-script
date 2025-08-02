@@ -104,10 +104,17 @@ ProductInfoExtractor.prototype.findShopNameNearEnterButton = function(window) {
             if (scrollCount > 0) {
                 logger.addLog(window, "第 " + scrollCount + " 次下滑查找店铺...");
                 scrollDown();
-                sleep(1500);
+                sleep(8000);
             }
 
-            // 先找到进店按钮，再在其附近查找店铺名称
+            // 优先使用精确的ID查找方法
+            var shopName = this.findShopNameByEnterMallId(window);
+            if (shopName) {
+                logger.addLog(window, "通过tv_enter_mall ID找到店铺: " + shopName);
+                return shopName;
+            }
+
+            // 备选方案：使用进店+已拼的方法
             var shopName = this.findShopNameNearEnterButtonAndYipin(window);
             if (shopName) {
                 logger.addLog(window, "通过进店+已拼找到店铺: " + shopName);
@@ -143,10 +150,15 @@ ProductInfoExtractor.prototype.findShopNameNearEnterButtonAndYipin = function(wi
         for (var i = 0; i < children.length; i++) {
             var child = children[i];
 
-            // 首先检查是否有进店按钮
-            var enterButton = child.findOne(text("进店"));
+            // 使用更精确的ID查找进店按钮
+            var enterButton = child.findOne(id("tv_enter_mall"));
+
+            // 如果通过ID没找到，再尝试文本匹配作为备选方案
             if (!enterButton) {
-                enterButton = child.findOne(textContains("进店"));
+                enterButton = child.findOne(text("进店"));
+                if (!enterButton) {
+                    enterButton = child.findOne(textContains("进店"));
+                }
             }
 
             if (enterButton) {
@@ -173,8 +185,49 @@ ProductInfoExtractor.prototype.findShopNameNearEnterButtonAndYipin = function(wi
     }
 };
 
+/**
+ * 使用精确的ID查找进店按钮并获取店铺信息
+ * @param {Object} window 悬浮窗对象
+ * @returns {string|null} 店铺名称
+ */
+ProductInfoExtractor.prototype.findShopNameByEnterMallId = function(window) {
+    try {
+        logger.addLog(window, "使用tv_enter_mall ID查找进店按钮...");
 
+        var recyclerView = id("pdd").className("android.support.v7.widget.RecyclerView").findOne(2000);
+        if (!recyclerView) {
+            logger.addLog(window, "未找到RecyclerView");
+            return null;
+        }
 
+        var children = recyclerView.children();
+        logger.addLog(window, "RecyclerView子元素数量: " + children.length);
+
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+
+            // 使用您提供的精确ID查找进店按钮
+            var enterButton = child.findOne(id("tv_enter_mall"));
+
+            if (enterButton) {
+                logger.addLog(window, "通过tv_enter_mall ID找到进店按钮");
+
+                // 在这个容器中查找店铺名称
+                var shopName = this.findRealShopNameInContainer(window, child);
+                if (shopName) {
+                    logger.addLog(window, "通过tv_enter_mall ID成功获取店铺名称: " + shopName);
+                    return shopName;
+                }
+            }
+        }
+
+        logger.addLog(window, "未通过tv_enter_mall ID找到有效的店铺信息");
+        return null;
+    } catch (e) {
+        logger.addLog(window, "使用tv_enter_mall ID查找失败: " + e.message);
+        return null;
+    }
+};
 
 
 
