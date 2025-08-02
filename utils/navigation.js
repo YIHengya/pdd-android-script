@@ -476,7 +476,9 @@ NavigationHelper.prototype.launchApp = function(window) {
 };
 
 /**
- * 滚动到页面顶部
+ * 滚动到页面顶部（连续滚动，不检测内容）
+ * 注意：对于主页和个人中心检测，建议使用 isAtHomePage 和 isAtPersonalCenter 方法，
+ * 它们会在滚动过程中逐步检测，避免过度滚动被识别为机器人行为
  * @param {Object} window 悬浮窗对象
  * @param {number} maxScrolls 最大滚动次数
  */
@@ -506,26 +508,48 @@ NavigationHelper.prototype.scrollToTop = function(window, maxScrolls) {
 NavigationHelper.prototype.isAtHomePage = function(window) {
     logger.addLog(window, "检查是否在主页...");
 
-    // 先滚动到页面顶部
-    this.scrollToTop(window, 8);
+    // 查找"推荐"标识的函数
+    var checkHomeIndicators = function() {
+        var homeIndicators = [
+            text("推荐"),
+            textContains("推荐")
+        ];
 
-    // 等待页面稳定
-    sleep(1000);
+        for (var i = 0; i < homeIndicators.length; i++) {
+            if (homeIndicators[i].exists()) {
+                return true;
+            }
+        }
+        return false;
+    };
 
-    // 查找"推荐"标识来确认是否在主页
-    var homeIndicators = [
-        text("推荐"),
-        textContains("推荐")
-    ];
+    // 先检查当前页面是否已经在主页
+    if (checkHomeIndicators()) {
+        logger.addLog(window, "✅ 确认在主页 - 找到推荐标识");
+        return true;
+    }
 
-    for (var i = 0; i < homeIndicators.length; i++) {
-        if (homeIndicators[i].exists()) {
-            logger.addLog(window, "✅ 确认在主页 - 找到推荐标识");
-            return true;
+    // 如果不在主页，适度向上滚动并检测（减少滚动次数避免被识别为机器人）
+    var maxScrolls = 3; // 减少到3次，更自然
+    for (var i = 0; i < maxScrolls; i++) {
+        try {
+            logger.addLog(window, "向上滚动第 " + (i + 1) + " 次...");
+            // 向上滑动
+            swipe(device.width / 2, device.height / 3, device.width / 2, device.height * 2 / 3, 300);
+            sleep(1000); // 增加等待时间，更像真实用户
+
+            // 每次滚动后立即检测主页标识
+            if (checkHomeIndicators()) {
+                logger.addLog(window, "✅ 确认在主页 - 找到推荐标识（滚动第 " + (i + 1) + " 次后）");
+                return true;
+            }
+        } catch (e) {
+            logger.addLog(window, "滚动操作失败: " + e.message);
+            break;
         }
     }
 
-    logger.addLog(window, "❌ 不在主页 - 未找到推荐标识");
+    logger.addLog(window, "❌ 不在主页 - 滚动完成后仍未找到推荐标识");
     return false;
 };
 
@@ -537,26 +561,48 @@ NavigationHelper.prototype.isAtHomePage = function(window) {
 NavigationHelper.prototype.isAtPersonalCenter = function(window) {
     logger.addLog(window, "检查是否在个人中心...");
 
-    // 先滚动到页面顶部
-    this.scrollToTop(window, 8);
+    // 查找"设置"标识的函数
+    var checkPersonalIndicators = function() {
+        var personalIndicators = [
+            text("设置"),
+            textContains("设置")
+        ];
 
-    // 等待页面稳定
-    sleep(1000);
+        for (var i = 0; i < personalIndicators.length; i++) {
+            if (personalIndicators[i].exists()) {
+                return true;
+            }
+        }
+        return false;
+    };
 
-    // 查找"设置"标识来确认是否在个人中心
-    var personalIndicators = [
-        text("设置"),
-        textContains("设置")
-    ];
+    // 先检查当前页面是否已经在个人中心
+    if (checkPersonalIndicators()) {
+        logger.addLog(window, "✅ 确认在个人中心 - 找到设置标识");
+        return true;
+    }
 
-    for (var i = 0; i < personalIndicators.length; i++) {
-        if (personalIndicators[i].exists()) {
-            logger.addLog(window, "✅ 确认在个人中心 - 找到设置标识");
-            return true;
+    // 如果不在个人中心，适度向上滚动并检测（减少滚动次数避免被识别为机器人）
+    var maxScrolls = 3; // 减少到3次，更自然
+    for (var i = 0; i < maxScrolls; i++) {
+        try {
+            logger.addLog(window, "向上滚动第 " + (i + 1) + " 次...");
+            // 向上滑动
+            swipe(device.width / 2, device.height / 3, device.width / 2, device.height * 2 / 3, 300);
+            sleep(1000); // 增加等待时间，更像真实用户
+
+            // 每次滚动后立即检测个人中心标识
+            if (checkPersonalIndicators()) {
+                logger.addLog(window, "✅ 确认在个人中心 - 找到设置标识（滚动第 " + (i + 1) + " 次后）");
+                return true;
+            }
+        } catch (e) {
+            logger.addLog(window, "滚动操作失败: " + e.message);
+            break;
         }
     }
 
-    logger.addLog(window, "❌ 不在个人中心 - 未找到设置标识");
+    logger.addLog(window, "❌ 不在个人中心 - 滚动完成后仍未找到设置标识");
     return false;
 };
 
