@@ -4,23 +4,29 @@
 const { PDD_CONFIG } = require('../config/app-config.js');
 const { parsePrice, safeClick } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
+const ApiClient = require('../utils/api-client.js');
+const ProductInfoExtractor = require('../utils/product-info.js');
 
 /**
  * 商品购买功能构造函数
  */
 function ProductPurchase() {
     this.config = PDD_CONFIG;
+    this.apiClient = new ApiClient();
+    this.productInfoExtractor = new ProductInfoExtractor();
 }
 
 /**
  * 执行完整的购买流程
  * @param {Object} window 悬浮窗对象
  * @param {number} targetPrice 目标价格
+ * @param {string} userName 用户名
  * @returns {boolean} 是否执行成功
  */
-ProductPurchase.prototype.execute = function(window, targetPrice) {
+ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
     try {
         logger.addLog(window, "开始执行商品购买流程...");
+        logger.addLog(window, "用户: " + userName + ", 目标价格: " + targetPrice + " 元");
 
         // 1. 启动应用
         if (!this.launchApp(window)) {
@@ -35,15 +41,35 @@ ProductPurchase.prototype.execute = function(window, targetPrice) {
         if (this.findProducts(window, targetPrice)) {
             logger.addLog(window, "成功找到并点击商品");
 
-            // 4. 购买商品
+            // 4. 提取商品信息并检查下单权限
+            var productInfo = this.productInfoExtractor.extractProductInfo(window, userName);
+            if (!productInfo) {
+                logger.addLog(window, "无法获取商品信息，返回主页");
+                this.returnToHome(window);
+                return false;
+            }
+
+            // 5. 检查是否可以下单
+            var checkResult = this.apiClient.checkOrderPermissionWithRetry(window, productInfo);
+            if (!checkResult.canOrder) {
+                logger.addLog(window, "不能下单: " + checkResult.message);
+                logger.addLog(window, "返回主页继续寻找其他商品");
+                this.returnToHome(window);
+                return false;
+            }
+
+            logger.addLog(window, "✅ 可以下单，开始购买流程");
+
+            // 6. 购买商品
             if (this.purchaseProduct(window)) {
                 logger.addLog(window, "购买流程已启动");
 
-                // 5. 等待支付宝页面出现后返回主页
+                // 7. 等待支付宝页面出现后返回主页
                 this.waitForAlipayAndReturn(window);
                 return true;
             } else {
                 logger.addLog(window, "购买流程失败");
+                this.returnToHome(window);
                 return false;
             }
         } else {

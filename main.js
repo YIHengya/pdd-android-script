@@ -79,12 +79,22 @@ MainApp.prototype.setupCallbacks = function() {
 
                 logger.addLog(window, "=== 开始执行主要功能 ===");
 
+                // 获取用户名用于API调用
+                var userName = "未知用户";
+                if (self.currentUserData && self.currentUserData.recipient && self.currentUserData.recipient.name) {
+                    userName = self.currentUserData.recipient.name;
+                } else if (self.currentUserData && self.currentUserData.user && self.currentUserData.user.displayName) {
+                    userName = self.currentUserData.user.displayName;
+                }
+
+                logger.addLog(window, "使用用户名: " + userName);
+
                 // 根据模式选择执行功能
                 if (mode === 'collect') {
                     self.productCollect.execute(window, targetPrice);
                 } else {
-                    // 默认执行购买功能
-                    self.productPurchase.execute(window, targetPrice);
+                    // 默认执行购买功能，传入用户名
+                    self.productPurchase.execute(window, targetPrice, userName);
                 }
             } catch (e) {
                 // 在UI线程中更新日志

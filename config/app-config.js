@@ -81,26 +81,41 @@ const PDD_CONFIG = {
 };
 
 /**
+ * API配置
+ */
+const API_CONFIG = {
+    // 下单预检查API地址
+    orderCheckUrl: "http://222.186.21.30:50357/orders",
+
+    // 请求超时时间（毫秒）
+    requestTimeout: 10000,
+
+    // 请求重试次数
+    maxRetries: 3
+};
+
+/**
  * 通用配置
  */
 const COMMON_CONFIG = {
     // 日志最大行数
     maxLogLines: 20,
-    
+
     // 悬浮窗位置
     floatingWindow: {
         x: 50,
         y: 100
     },
-    
+
     // 元素查找超时时间
     findTimeout: 2000,
-    
+
     // 脚本保持运行间隔
     keepAliveInterval: 1000
 };
 
 module.exports = {
     PDD_CONFIG,
+    API_CONFIG,
     COMMON_CONFIG
 };
