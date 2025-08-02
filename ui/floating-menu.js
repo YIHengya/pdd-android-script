@@ -21,31 +21,25 @@ function FloatingMenu() {
  */
 FloatingMenu.prototype.create = function() {
     this.menuWindow = floaty.rawWindow(
-        <frame id="menuFrame" w="280dp" h="350dp" visibility="gone" bg="#88000000">
-            <card cardCornerRadius="10dp" cardElevation="8dp" cardBackgroundColor="#ffffff" margin="5dp">
+        <frame id="menuFrame" w="280dp" h="350dp" visibility="gone">
+            <card cardCornerRadius="10dp" cardElevation="8dp" margin="5dp" cardBackgroundColor="#f8f9fa">
                 <vertical padding="15dp">
-                    <horizontal gravity="center_vertical">
-                        <text text="PDD自动脚本" textColor="#333333" textSize="18sp" textStyle="bold" layout_weight="1"/>
-                        <button id="closeMenuBtn" text="×" textColor="#ffffff" bg="#ff4444" 
-                                w="35dp" h="35dp" textSize="16sp"/>
-                    </horizontal>
-                    
-                    <View h="1dp" bg="#eeeeee" margin="5dp"/>
-                    
                     <horizontal margin="5dp" gravity="center_vertical">
                         <Switch id="scriptSwitch" text="自动下单" textColor="#333333" textSize="14sp" checked="false" layout_weight="0"/>
                         <text id="statusText" text="就绪" textColor="#666666" textSize="12sp" layout_gravity="right" margin="10dp 0 0 0"/>
                     </horizontal>
                     
-                    <horizontal margin="5dp" gravity="center_vertical">
-                        <text text="目标价格:" textColor="#333333" textSize="14sp"/>
-                        <input id="priceInput" text="0.8" textColor="#333333" bg="#f5f5f5"
-                               w="80dp" h="40dp" textSize="14sp" margin="8dp 0 0 0"
-                               inputType="numberDecimal"/>
-                        <text text="元" textColor="#333333" textSize="14sp" margin="5dp 0 0 0"/>
-                    </horizontal>
+                    <vertical margin="5dp 5dp 2dp 5dp">
+                        <horizontal gravity="center_vertical">
+                            <text text="目标价格:" textColor="#333333" textSize="14sp"/>
+                            <text id="priceDisplay" text="0.80元" textColor="#333333" textSize="14sp"
+                                  margin="8dp 0 0 0" textStyle="bold"/>
+                        </horizontal>
+                        <seekbar id="priceSeekbar" w="*" h="15dp" margin="0 4dp 0 4dp"
+                                 max="100" progress="70" progressTint="#2196F3" thumbTint="#2196F3"/>
+                    </vertical>
 
-                    <horizontal margin="5dp" gravity="center">
+                    <horizontal margin="2dp 5dp 5dp 5dp" gravity="center">
                         <button id="purchaseBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
                                 w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
                         <button id="collectBtn" text="收藏模式" textColor="#ffffff" bg="#FF9800"
@@ -126,10 +120,24 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             }
         });
 
-        // 关闭菜单按钮事件
-        this.menuWindow.closeMenuBtn.click(function() {
-            self.hide();
+        // 价格滑动条事件处理
+        this.menuWindow.priceSeekbar.setOnSeekBarChangeListener({
+            onProgressChanged: function(seekBar, progress, fromUser) {
+                if (fromUser) {
+                    // 将进度值转换为价格（0-100对应0.1-1.1元）
+                    var price = 0.1 + (progress / 100.0);
+                    self.updatePriceDisplay(price);
+                }
+            },
+            onStartTrackingTouch: function(seekBar) {
+                // 开始拖动时的处理
+            },
+            onStopTrackingTouch: function(seekBar) {
+                // 停止拖动时的处理
+            }
         });
+
+
 
         // 购买模式按钮
         this.menuWindow.purchaseBtn.click(function() {
@@ -186,17 +194,17 @@ FloatingMenu.prototype.setupEventHandlers = function() {
  * 启动脚本
  */
 FloatingMenu.prototype.startScript = function() {
-    // 获取目标价格
-    var targetPriceText = this.menuWindow.priceInput.getText().toString();
-    var targetPrice = parseFloat(targetPriceText);
+    // 从滑动条获取目标价格
+    var progress = this.menuWindow.priceSeekbar.getProgress();
+    var targetPrice = 0.1 + (progress / 100.0);
 
     if (isNaN(targetPrice) || targetPrice <= 0) {
-        this.addLog("请输入有效的目标价格");
+        this.addLog("请设置有效的目标价格");
         this.menuWindow.scriptSwitch.setChecked(false);
         return;
     }
 
-    this.addLog("开始执行脚本，目标价格: " + targetPrice + " 元，模式: " + this.currentMode);
+    this.addLog("开始执行脚本，目标价格: " + targetPrice.toFixed(2) + " 元，模式: " + this.currentMode);
     this.updateStatus("运行中");
 
     // 使用setTimeout避免在UI线程中执行阻塞操作
@@ -257,6 +265,17 @@ FloatingMenu.prototype.updateStatus = function(status) {
     if (this.menuWindow) {
         ui.run(() => {
             this.menuWindow.statusText.setText(status);
+        });
+    }
+};
+
+/**
+ * 更新价格显示
+ */
+FloatingMenu.prototype.updatePriceDisplay = function(price) {
+    if (this.menuWindow) {
+        ui.run(() => {
+            this.menuWindow.priceDisplay.setText(price.toFixed(2) + "元");
         });
     }
 };
