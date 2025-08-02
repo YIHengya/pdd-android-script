@@ -21,14 +21,21 @@ function ProductPurchase() {
 /**
  * 执行完整的购买流程
  * @param {Object} window 悬浮窗对象
- * @param {number} targetPrice 目标价格
+ * @param {Object} priceRange 价格区间对象 {min: number, max: number}
  * @param {string} userName 用户名
  * @returns {boolean} 是否执行成功
  */
-ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
+ProductPurchase.prototype.execute = function(window, priceRange, userName) {
     try {
         logger.addLog(window, "开始执行商品购买流程...");
-        logger.addLog(window, "用户: " + userName + ", 目标价格: " + targetPrice + " 元");
+
+        // 兼容旧的单价格参数
+        if (typeof priceRange === 'number') {
+            logger.addLog(window, "用户: " + userName + ", 目标价格: " + priceRange + " 元");
+            priceRange = { min: 0, max: priceRange };
+        } else {
+            logger.addLog(window, "用户: " + userName + ", 价格区间: " + priceRange.min.toFixed(2) + "-" + priceRange.max.toFixed(2) + " 元");
+        }
 
         // 1. 启动应用
         if (!this.navigationHelper.launchApp(window)) {
@@ -43,7 +50,7 @@ ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
         }
 
         // 3. 寻找商品
-        if (this.findProducts(window, targetPrice)) {
+        if (this.findProducts(window, priceRange)) {
             logger.addLog(window, "成功找到并点击商品");
 
             // 4. 提取商品信息并检查下单权限
@@ -95,11 +102,17 @@ ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
 /**
  * 寻找符合条件的商品
  * @param {Object} window 悬浮窗对象
- * @param {number} targetPrice 目标价格
+ * @param {Object} priceRange 价格区间对象 {min: number, max: number}
  * @returns {boolean} 是否找到商品
  */
-ProductPurchase.prototype.findProducts = function(window, targetPrice) {
-    logger.addLog(window, "开始寻找价格低于 " + targetPrice + " 元的商品...");
+ProductPurchase.prototype.findProducts = function(window, priceRange) {
+    // 兼容旧的单价格参数
+    if (typeof priceRange === 'number') {
+        logger.addLog(window, "开始寻找价格低于 " + priceRange + " 元的商品...");
+        priceRange = { min: 0, max: priceRange };
+    } else {
+        logger.addLog(window, "开始寻找价格在 " + priceRange.min.toFixed(2) + "-" + priceRange.max.toFixed(2) + " 元区间的商品...");
+    }
 
     var scrollCount = 0;
 
@@ -118,7 +131,7 @@ ProductPurchase.prototype.findProducts = function(window, targetPrice) {
             for (var j = 0; j < this.config.pricePatterns.length; j++) {
                 if (this.config.pricePatterns[j].test(text)) {
                     var price = parsePrice(text);
-                    if (price !== null && price > 0 && price < targetPrice) {
+                    if (price !== null && price > 0 && price >= priceRange.min && price <= priceRange.max) {
                         logger.addLog(window, "找到商品: " + text + " (价格: " + price + " 元)");
 
                         if (this.clickProduct(window, element)) {

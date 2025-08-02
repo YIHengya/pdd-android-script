@@ -24,16 +24,23 @@ function ProductCollect() {
 /**
  * 执行完整的收藏流程
  * @param {Object} window 悬浮窗对象
- * @param {number} targetPrice 目标价格
+ * @param {Object} priceRange 价格区间对象 {min: number, max: number}
  * @param {number} maxCollectCount 最大收藏数量
  * @returns {boolean} 是否执行成功
  */
-ProductCollect.prototype.execute = function(window, targetPrice, maxCollectCount) {
+ProductCollect.prototype.execute = function(window, priceRange, maxCollectCount) {
     if (!maxCollectCount) maxCollectCount = 10;
-    
+
     try {
         logger.addLog(window, "开始执行商品收藏流程...");
-        logger.addLog(window, "目标价格: " + targetPrice + " 元，最大收藏: " + maxCollectCount + " 个");
+
+        // 兼容旧的单价格参数
+        if (typeof priceRange === 'number') {
+            logger.addLog(window, "目标价格: " + priceRange + " 元，最大收藏: " + maxCollectCount + " 个");
+            priceRange = { min: 0, max: priceRange };
+        } else {
+            logger.addLog(window, "价格区间: " + priceRange.min.toFixed(2) + "-" + priceRange.max.toFixed(2) + " 元，最大收藏: " + maxCollectCount + " 个");
+        }
 
         // 1. 启动应用
         if (!this.launchApp(window)) {
@@ -45,7 +52,7 @@ ProductCollect.prototype.execute = function(window, targetPrice, maxCollectCount
         this.ensureAtHomePage(window);
 
         // 3. 批量收藏商品
-        var collectCount = this.batchCollectProducts(window, targetPrice, maxCollectCount);
+        var collectCount = this.batchCollectProducts(window, priceRange, maxCollectCount);
         
         logger.addLog(window, "收藏流程完成，共收藏 " + collectCount + " 个商品");
         return collectCount > 0;
@@ -105,11 +112,11 @@ ProductCollect.prototype.ensureAtHomePage = function(window) {
 /**
  * 批量收藏商品
  * @param {Object} window 悬浮窗对象
- * @param {number} targetPrice 目标价格
+ * @param {Object} priceRange 价格区间对象 {min: number, max: number}
  * @param {number} maxCount 最大收藏数量
  * @returns {number} 实际收藏数量
  */
-ProductCollect.prototype.batchCollectProducts = function(window, targetPrice, maxCount) {
+ProductCollect.prototype.batchCollectProducts = function(window, priceRange, maxCount) {
     var collectCount = 0;
     var scrollCount = 0;
     var maxScrolls = this.config.maxScrolls * 2; // 收藏模式下多滚动一些
@@ -118,7 +125,7 @@ ProductCollect.prototype.batchCollectProducts = function(window, targetPrice, ma
         logger.addLog(window, "第 " + (scrollCount + 1) + " 次搜索商品进行收藏...");
 
         // 寻找当前屏幕上的商品
-        var products = this.findProductsOnScreen(targetPrice);
+        var products = this.findProductsOnScreen(priceRange);
         
         for (var i = 0; i < products.length && collectCount < maxCount; i++) {
             var product = products[i];
@@ -146,12 +153,17 @@ ProductCollect.prototype.batchCollectProducts = function(window, targetPrice, ma
 
 /**
  * 在当前屏幕寻找符合条件的商品
- * @param {number} targetPrice 目标价格
+ * @param {Object} priceRange 价格区间对象 {min: number, max: number}
  * @returns {Array} 商品信息数组
  */
-ProductCollect.prototype.findProductsOnScreen = function(targetPrice) {
+ProductCollect.prototype.findProductsOnScreen = function(priceRange) {
     var products = [];
     var allTexts = textMatches(/.*/).find();
+
+    // 兼容旧的单价格参数
+    if (typeof priceRange === 'number') {
+        priceRange = { min: 0, max: priceRange };
+    }
 
     for (var i = 0; i < allTexts.length; i++) {
         var element = allTexts[i];
@@ -163,7 +175,7 @@ ProductCollect.prototype.findProductsOnScreen = function(targetPrice) {
         for (var j = 0; j < this.config.pricePatterns.length; j++) {
             if (this.config.pricePatterns[j].test(text)) {
                 var price = parsePrice(text);
-                if (price !== null && price > 0 && price < targetPrice) {
+                if (price !== null && price > 0 && price >= priceRange.min && price <= priceRange.max) {
                     products.push({
                         element: element,
                         text: text,

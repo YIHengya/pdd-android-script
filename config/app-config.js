@@ -15,8 +15,14 @@ const PDD_CONFIG = {
         "拼多多"
     ],
     
-    // 默认目标价格
+    // 默认目标价格（保持向后兼容）
     defaultTargetPrice: 0.8,
+
+    // 默认价格区间
+    defaultPriceRange: {
+        min: 0.5,
+        max: 1.0
+    },
     
     // 最大滚动次数
     maxScrolls: 10,

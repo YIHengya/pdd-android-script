@@ -51,7 +51,7 @@ MainApp.prototype.setupCallbacks = function() {
     var self = this;
 
     // 设置脚本启动回调
-    this.floatingWindow.setOnStartCallback(function(window, targetPrice, mode) {
+    this.floatingWindow.setOnStartCallback(function(window, priceRange, mode) {
         // 在新线程中执行脚本，避免阻塞UI线程
         self.scriptThread = threads.start(function() {
             try {
@@ -91,10 +91,10 @@ MainApp.prototype.setupCallbacks = function() {
 
                 // 根据模式选择执行功能
                 if (mode === 'collect') {
-                    self.productCollect.execute(window, targetPrice);
+                    self.productCollect.execute(window, priceRange);
                 } else {
                     // 默认执行购买功能，传入用户名
-                    self.productPurchase.execute(window, targetPrice, userName);
+                    self.productPurchase.execute(window, priceRange, userName);
                 }
             } catch (e) {
                 // 在UI线程中更新日志

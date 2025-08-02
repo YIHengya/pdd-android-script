@@ -31,12 +31,24 @@ FloatingMenu.prototype.create = function() {
                     
                     <vertical margin="5dp 5dp 2dp 5dp">
                         <horizontal gravity="center_vertical">
-                            <text text="目标价格:" textColor="#333333" textSize="14sp"/>
-                            <text id="priceDisplay" text="0.80元" textColor="#333333" textSize="14sp"
+                            <text text="价格区间:" textColor="#333333" textSize="14sp"/>
+                            <text id="priceRangeDisplay" text="0.50-1.00元" textColor="#333333" textSize="14sp"
                                   margin="8dp 0 0 0" textStyle="bold"/>
                         </horizontal>
-                        <seekbar id="priceSeekbar" w="*" h="15dp" margin="0 4dp 0 4dp"
-                                 max="100" progress="70" progressTint="#2196F3" thumbTint="#2196F3"/>
+
+                        <horizontal gravity="center_vertical" margin="0 0 3dp 0">
+                            <text text="最低:" textColor="#666666" textSize="12sp" w="35dp"/>
+                            <seekbar id="minPriceSeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
+                                     max="100" progress="40" progressTint="#4CAF50" thumbTint="#4CAF50"/>
+                            <text id="minPriceText" text="0.50" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical">
+                            <text text="最高:" textColor="#666666" textSize="12sp" w="35dp"/>
+                            <seekbar id="maxPriceSeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
+                                     max="100" progress="90" progressTint="#FF5722" thumbTint="#FF5722"/>
+                            <text id="maxPriceText" text="1.00" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
+                        </horizontal>
                     </vertical>
 
                     <horizontal margin="2dp 5dp 5dp 5dp" gravity="center">
@@ -120,20 +132,45 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             }
         });
 
-        // 价格滑动条事件处理
-        this.menuWindow.priceSeekbar.setOnSeekBarChangeListener({
+        // 最低价格滑动条事件处理
+        this.menuWindow.minPriceSeekbar.setOnSeekBarChangeListener({
             onProgressChanged: function(seekBar, progress, fromUser) {
                 if (fromUser) {
-                    // 将进度值转换为价格（0-100对应0.1-1.1元）
-                    var price = 0.1 + (progress / 100.0);
-                    self.updatePriceDisplay(price);
+                    // 将进度值转换为价格（0-100对应0.1-2.0元）
+                    var minPrice = 0.1 + (progress / 100.0) * 1.9;
+                    var maxProgress = self.menuWindow.maxPriceSeekbar.getProgress();
+                    var maxPrice = 0.1 + (maxProgress / 100.0) * 1.9;
+
+                    // 确保最低价格不超过最高价格
+                    if (minPrice >= maxPrice) {
+                        var newMaxProgress = Math.min(100, progress + 10);
+                        self.menuWindow.maxPriceSeekbar.setProgress(newMaxProgress);
+                        maxPrice = 0.1 + (newMaxProgress / 100.0) * 1.9;
+                    }
+
+                    self.updatePriceRangeDisplay(minPrice, maxPrice);
                 }
-            },
-            onStartTrackingTouch: function(seekBar) {
-                // 开始拖动时的处理
-            },
-            onStopTrackingTouch: function(seekBar) {
-                // 停止拖动时的处理
+            }
+        });
+
+        // 最高价格滑动条事件处理
+        this.menuWindow.maxPriceSeekbar.setOnSeekBarChangeListener({
+            onProgressChanged: function(seekBar, progress, fromUser) {
+                if (fromUser) {
+                    // 将进度值转换为价格（0-100对应0.1-2.0元）
+                    var maxPrice = 0.1 + (progress / 100.0) * 1.9;
+                    var minProgress = self.menuWindow.minPriceSeekbar.getProgress();
+                    var minPrice = 0.1 + (minProgress / 100.0) * 1.9;
+
+                    // 确保最高价格不低于最低价格
+                    if (maxPrice <= minPrice) {
+                        var newMinProgress = Math.max(0, progress - 10);
+                        self.menuWindow.minPriceSeekbar.setProgress(newMinProgress);
+                        minPrice = 0.1 + (newMinProgress / 100.0) * 1.9;
+                    }
+
+                    self.updatePriceRangeDisplay(minPrice, maxPrice);
+                }
             }
         });
 
@@ -194,24 +231,31 @@ FloatingMenu.prototype.setupEventHandlers = function() {
  * 启动脚本
  */
 FloatingMenu.prototype.startScript = function() {
-    // 从滑动条获取目标价格
-    var progress = this.menuWindow.priceSeekbar.getProgress();
-    var targetPrice = 0.1 + (progress / 100.0);
+    // 从滑动条获取价格区间
+    var minProgress = this.menuWindow.minPriceSeekbar.getProgress();
+    var maxProgress = this.menuWindow.maxPriceSeekbar.getProgress();
+    var minPrice = 0.1 + (minProgress / 100.0) * 1.9;
+    var maxPrice = 0.1 + (maxProgress / 100.0) * 1.9;
 
-    if (isNaN(targetPrice) || targetPrice <= 0) {
-        this.addLog("请设置有效的目标价格");
+    if (isNaN(minPrice) || isNaN(maxPrice) || minPrice <= 0 || maxPrice <= 0 || minPrice >= maxPrice) {
+        this.addLog("请设置有效的价格区间");
         this.menuWindow.scriptSwitch.setChecked(false);
         return;
     }
 
-    this.addLog("开始执行脚本，目标价格: " + targetPrice.toFixed(2) + " 元，模式: " + this.currentMode);
+    this.addLog("开始执行脚本，价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + " 元，模式: " + this.currentMode);
     this.updateStatus("运行中");
 
     // 使用setTimeout避免在UI线程中执行阻塞操作
     var self = this;
     setTimeout(function() {
         if (self.onStartCallback) {
-            self.onStartCallback(self.menuWindow, targetPrice, self.currentMode);
+            // 传递价格区间对象而不是单一价格
+            var priceRange = {
+                min: minPrice,
+                max: maxPrice
+            };
+            self.onStartCallback(self.menuWindow, priceRange, self.currentMode);
         }
     }, 100);
 };
@@ -270,12 +314,28 @@ FloatingMenu.prototype.updateStatus = function(status) {
 };
 
 /**
- * 更新价格显示
+ * 更新价格区间显示
+ */
+FloatingMenu.prototype.updatePriceRangeDisplay = function(minPrice, maxPrice) {
+    if (this.menuWindow) {
+        ui.run(() => {
+            this.menuWindow.priceRangeDisplay.setText(minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + "元");
+            this.menuWindow.minPriceText.setText(minPrice.toFixed(2));
+            this.menuWindow.maxPriceText.setText(maxPrice.toFixed(2));
+        });
+    }
+};
+
+/**
+ * 更新价格显示（保持向后兼容）
  */
 FloatingMenu.prototype.updatePriceDisplay = function(price) {
     if (this.menuWindow) {
         ui.run(() => {
-            this.menuWindow.priceDisplay.setText(price.toFixed(2) + "元");
+            // 如果还有旧的priceDisplay元素，更新它
+            if (this.menuWindow.priceDisplay) {
+                this.menuWindow.priceDisplay.setText(price.toFixed(2) + "元");
+            }
         });
     }
 };
