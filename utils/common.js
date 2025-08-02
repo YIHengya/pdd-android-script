@@ -105,11 +105,40 @@ function findAnyElement(selectors) {
     return null;
 }
 
+/**
+ * 向下滚动（使用随机坐标）
+ * @param {number} duration 滑动持续时间（毫秒），默认300
+ */
+function scrollDownWithRandomCoords(duration) {
+    duration = duration || 300;
+
+    // 获取屏幕尺寸
+    var screenWidth = device.width;
+    var screenHeight = device.height;
+
+    // 生成随机的X坐标（在屏幕中央区域，避免边缘）
+    var randomX = Math.floor(screenWidth * 0.3 + Math.random() * screenWidth * 0.4);
+
+    // 起始Y坐标（屏幕下方2/3处）
+    var startY = Math.floor(screenHeight * 0.65 + Math.random() * screenHeight * 0.1);
+
+    // 结束Y坐标（屏幕上方1/3处）
+    var endY = Math.floor(screenHeight * 0.25 + Math.random() * screenHeight * 0.1);
+
+    try {
+        // 执行向下滑动（从下往上滑动实现向下滚动）
+        swipe(randomX, startY, randomX, endY, duration);
+    } catch (e) {
+        console.error("向下滚动失败: " + e.message);
+    }
+}
+
 module.exports = {
     parsePrice,
     wait,
     getTimestamp,
     safeClick,
     isInApp,
-    findAnyElement
+    findAnyElement,
+    scrollDownWithRandomCoords
 };

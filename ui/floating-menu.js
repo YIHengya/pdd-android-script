@@ -39,14 +39,14 @@ FloatingMenu.prototype.create = function() {
                         <horizontal gravity="center_vertical" margin="0 0 3dp 0">
                             <text text="最低:" textColor="#666666" textSize="12sp" w="35dp"/>
                             <seekbar id="minPriceSeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
-                                     max="100" progress="40" progressTint="#4CAF50" thumbTint="#4CAF50"/>
+                                     max="100" progress="21" progressTint="#4CAF50" thumbTint="#4CAF50"/>
                             <text id="minPriceText" text="0.50" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
                         </horizontal>
 
                         <horizontal gravity="center_vertical">
                             <text text="最高:" textColor="#666666" textSize="12sp" w="35dp"/>
                             <seekbar id="maxPriceSeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
-                                     max="100" progress="90" progressTint="#FF5722" thumbTint="#FF5722"/>
+                                     max="100" progress="47" progressTint="#FF5722" thumbTint="#FF5722"/>
                             <text id="maxPriceText" text="1.00" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
                         </horizontal>
                     </vertical>
@@ -99,10 +99,34 @@ FloatingMenu.prototype.create = function() {
     var self = this;
     setTimeout(function() {
         self.setupEventHandlers();
+        // 初始化价格显示
+        self.initializePriceDisplay();
     }, 100);
 
     this.updateModeButtons();
     return this.menuWindow;
+};
+
+/**
+ * 初始化价格显示
+ */
+FloatingMenu.prototype.initializePriceDisplay = function() {
+    if (!this.menuWindow) return;
+
+    try {
+        // 获取当前滑动条的进度值
+        var minProgress = this.menuWindow.minPriceSeekbar.getProgress();
+        var maxProgress = this.menuWindow.maxPriceSeekbar.getProgress();
+
+        // 计算对应的价格
+        var minPrice = 0.1 + (minProgress / 100.0) * 1.9;
+        var maxPrice = 0.1 + (maxProgress / 100.0) * 1.9;
+
+        // 更新价格显示
+        this.updatePriceRangeDisplay(minPrice, maxPrice);
+    } catch (e) {
+        console.error("初始化价格显示失败: " + e.message);
+    }
 };
 
 /**

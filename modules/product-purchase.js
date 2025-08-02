@@ -2,7 +2,7 @@
 // 整合拼多多自动购买的所有功能
 
 const { PDD_CONFIG } = require('../config/app-config.js');
-const { parsePrice, safeClick } = require('../utils/common.js');
+const { parsePrice, safeClick, scrollDownWithRandomCoords } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
 const ApiClient = require('../utils/api-client.js');
 const ProductInfoExtractor = require('../utils/product-info.js');
@@ -144,7 +144,7 @@ ProductPurchase.prototype.findProducts = function(window, priceRange) {
         }
 
         logger.addLog(window, "向下滚动寻找更多商品...");
-        scrollDown();
+        scrollDownWithRandomCoords();
         sleep(this.config.waitTimes.scroll);
         scrollCount++;
     }

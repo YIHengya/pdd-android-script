@@ -25,7 +25,7 @@ const PDD_CONFIG = {
     },
     
     // 最大滚动次数
-    maxScrolls: 10,
+    maxScrolls: 50,
     
     // 最大返回次数
     maxRetries: 10,

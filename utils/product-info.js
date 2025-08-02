@@ -2,7 +2,7 @@
 // 从拼多多APP中提取商品信息
 
 const { PDD_CONFIG } = require('../config/app-config.js');
-const { parsePrice, safeClick } = require('./common.js');
+const { parsePrice, safeClick, scrollDownWithRandomCoords } = require('./common.js');
 const logger = require('./logger.js');
 
 /**
@@ -103,7 +103,7 @@ ProductInfoExtractor.prototype.findShopNameNearEnterButton = function(window) {
             // 第一次不滑动，直接查找当前页面
             if (scrollCount > 0) {
                 logger.addLog(window, "第 " + scrollCount + " 次下滑查找店铺...");
-                scrollDown();
+                scrollDownWithRandomCoords();
                 sleep(8000);
             }
 
