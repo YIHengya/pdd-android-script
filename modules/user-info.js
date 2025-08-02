@@ -97,40 +97,100 @@ UserInfo.prototype.getRecipientInfo = function(window) {
 };
 
 /**
+ * 获取当前包名（带重试机制）
+ * @param {number} maxRetries 最大重试次数
+ * @param {number} retryDelay 重试间隔（毫秒）
+ * @returns {string|null} 当前包名
+ */
+UserInfo.prototype.getCurrentPackageWithRetry = function(maxRetries, retryDelay) {
+    maxRetries = maxRetries || 3;
+    retryDelay = retryDelay || 1000;
+
+    for (var i = 0; i < maxRetries; i++) {
+        try {
+            var currentPkg = currentPackage();
+            if (currentPkg && currentPkg !== null && currentPkg !== "") {
+                return currentPkg;
+            }
+
+            if (i < maxRetries - 1) {
+                sleep(retryDelay);
+            }
+        } catch (e) {
+            if (i < maxRetries - 1) {
+                sleep(retryDelay);
+            }
+        }
+    }
+
+    return null;
+};
+
+/**
+ * 检查是否在拼多多应用中
+ * @param {string} currentPkg 当前包名
+ * @returns {boolean} 是否在拼多多应用中
+ */
+UserInfo.prototype.isPDDApp = function(currentPkg) {
+    if (!currentPkg) return false;
+
+    // 检查精确匹配
+    for (var i = 0; i < this.config.packageNames.length; i++) {
+        if (currentPkg === this.config.packageNames[i]) {
+            return true;
+        }
+    }
+
+    // 检查模糊匹配
+    if (currentPkg.indexOf("pinduoduo") !== -1 ||
+        currentPkg.indexOf("pdd") !== -1 ||
+        currentPkg.indexOf("xunmeng") !== -1) {
+        return true;
+    }
+
+    return false;
+};
+
+/**
  * 确保在拼多多APP中
  * @param {Object} window 悬浮窗对象
  * @returns {boolean} 是否成功
  */
 UserInfo.prototype.ensureInPDDApp = function(window) {
     try {
-        var currentPkg = currentPackage();
-        
+        // 使用重试机制获取当前包名
+        var currentPkg = this.getCurrentPackageWithRetry(3, 500);
+        logger.addLog(window, "当前应用包名: " + (currentPkg || "null"));
+
         // 检查是否已经在拼多多APP中
-        for (var i = 0; i < this.config.packageNames.length; i++) {
-            if (currentPkg === this.config.packageNames[i]) {
-                logger.addLog(window, "已在拼多多APP中");
-                return true;
-            }
+        if (this.isPDDApp(currentPkg)) {
+            logger.addLog(window, "已在拼多多APP中");
+            return true;
         }
 
         // 尝试启动拼多多APP
         logger.addLog(window, "正在启动拼多多APP...");
-        
+
         home();
         sleep(2000);
 
         // 尝试使用包名启动
         for (var i = 0; i < this.config.packageNames.length; i++) {
             try {
+                logger.addLog(window, "尝试包名: " + this.config.packageNames[i]);
                 app.launchPackage(this.config.packageNames[i]);
                 sleep(this.config.waitTimes.appLaunch);
 
-                currentPkg = currentPackage();
-                if (currentPkg === this.config.packageNames[i]) {
+                // 使用重试机制获取当前包名
+                currentPkg = this.getCurrentPackageWithRetry(5, 800);
+                logger.addLog(window, "启动后当前应用: " + (currentPkg || "null"));
+
+                if (this.isPDDApp(currentPkg)) {
                     logger.addLog(window, "成功启动拼多多APP");
                     return true;
                 }
             } catch (e) {
+                logger.addLog(window, "包名启动异常: " + e.message);
                 continue;
             }
         }
@@ -138,19 +198,43 @@ UserInfo.prototype.ensureInPDDApp = function(window) {
         // 尝试使用应用名启动
         for (var i = 0; i < this.config.appNames.length; i++) {
             try {
+                logger.addLog(window, "尝试应用名: " + this.config.appNames[i]);
                 app.launchApp(this.config.appNames[i]);
                 sleep(this.config.waitTimes.appLaunch);
 
-                currentPkg = currentPackage();
-                for (var j = 0; j < this.config.packageNames.length; j++) {
-                    if (currentPkg === this.config.packageNames[j]) {
-                        logger.addLog(window, "成功启动拼多多APP");
-                        return true;
-                    }
+                // 使用重试机制获取当前包名
+                currentPkg = this.getCurrentPackageWithRetry(5, 800);
+                logger.addLog(window, "启动后当前应用: " + (currentPkg || "null"));
+
+                if (this.isPDDApp(currentPkg)) {
+                    logger.addLog(window, "成功启动拼多多APP");
+                    return true;
                 }
             } catch (e) {
+                logger.addLog(window, "应用名启动异常: " + e.message);
                 continue;
             }
+        }
+
+        // 最后尝试：通过Intent启动
+        logger.addLog(window, "尝试通过Intent启动...");
+        try {
+            var intent = new Intent();
+            intent.setAction("android.intent.action.MAIN");
+            intent.addCategory("android.intent.category.LAUNCHER");
+            intent.setPackage("com.xunmeng.pinduoduo");
+            context.startActivity(intent);
+
+            sleep(this.config.waitTimes.appLaunch);
+            currentPkg = this.getCurrentPackageWithRetry(5, 800);
+            logger.addLog(window, "Intent启动后当前应用: " + (currentPkg || "null"));
+
+            if (this.isPDDApp(currentPkg)) {
+                logger.addLog(window, "Intent启动成功");
+                return true;
+            }
+        } catch (e) {
+            logger.addLog(window, "Intent启动失败: " + e.message);
         }
 
         return false;

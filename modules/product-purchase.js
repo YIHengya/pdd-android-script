@@ -6,6 +6,7 @@ const { parsePrice, safeClick } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
 const ApiClient = require('../utils/api-client.js');
 const ProductInfoExtractor = require('../utils/product-info.js');
+const NavigationHelper = require('../utils/navigation.js');
 
 /**
  * 商品购买功能构造函数
@@ -14,6 +15,7 @@ function ProductPurchase() {
     this.config = PDD_CONFIG;
     this.apiClient = new ApiClient();
     this.productInfoExtractor = new ProductInfoExtractor();
+    this.navigationHelper = new NavigationHelper();
 }
 
 /**
@@ -29,13 +31,16 @@ ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
         logger.addLog(window, "用户: " + userName + ", 目标价格: " + targetPrice + " 元");
 
         // 1. 启动应用
-        if (!this.launchApp(window)) {
+        if (!this.navigationHelper.launchApp(window)) {
             logger.addLog(window, "无法打开拼多多APP，请检查是否已安装");
             return false;
         }
 
         // 2. 确保在主页
-        this.ensureAtHomePage(window);
+        if (!this.navigationHelper.goToHomePage(window)) {
+            logger.addLog(window, "无法回到主页");
+            return false;
+        }
 
         // 3. 寻找商品
         if (this.findProducts(window, targetPrice)) {
@@ -45,7 +50,7 @@ ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
             var productInfo = this.productInfoExtractor.extractProductInfo(window, userName);
             if (!productInfo) {
                 logger.addLog(window, "无法获取商品信息，返回主页");
-                this.returnToHome(window);
+                this.navigationHelper.goToHomePage(window);
                 return false;
             }
 
@@ -54,7 +59,7 @@ ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
             if (!checkResult.canOrder) {
                 logger.addLog(window, "不能下单: " + checkResult.message);
                 logger.addLog(window, "返回主页继续寻找其他商品");
-                this.returnToHome(window);
+                this.navigationHelper.goToHomePage(window);
                 return false;
             }
 
@@ -69,7 +74,7 @@ ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
                 return true;
             } else {
                 logger.addLog(window, "购买流程失败");
-                this.returnToHome(window);
+                this.navigationHelper.goToHomePage(window);
                 return false;
             }
         } else {
@@ -83,99 +88,9 @@ ProductPurchase.prototype.execute = function(window, targetPrice, userName) {
     }
 };
 
-/**
- * 检测设备上安装的拼多多相关应用
- * @param {Object} window 悬浮窗对象
- 
 
-/**
- * 启动拼多多应用
- * @param {Object} window 悬浮窗对象
- * @returns {boolean} 是否启动成功
- */
-ProductPurchase.prototype.launchApp = function(window) {
-    try {
-        logger.addLog(window, "正在直接打开拼多多APP...");
 
-        home();
-        sleep(2000);
 
-        // 直接尝试使用包名启动
-        logger.addLog(window, "尝试使用包名直接启动...");
-        for (var m = 0; m < this.config.packageNames.length; m++) {
-            try {
-                logger.addLog(window, "尝试包名: " + this.config.packageNames[m]);
-                app.launchPackage(this.config.packageNames[m]);
-                sleep(this.config.waitTimes.appLaunch);
-
-                var currentPkg = currentPackage();
-                logger.addLog(window, "启动后当前应用: " + currentPkg);
-
-                if (currentPkg === this.config.packageNames[m]) {
-                    logger.addLog(window, "✅ 成功通过包名打开拼多多APP");
-                    return true;
-                }
-            } catch (e) {
-                logger.addLog(window, "包名启动失败: " + e.message);
-                continue;
-            }
-        }
-
-        // 尝试使用配置中的应用名称启动
-        logger.addLog(window, "尝试使用应用名称启动...");
-        for (var i = 0; i < this.config.appNames.length; i++) {
-            try {
-                logger.addLog(window, "尝试应用名: " + this.config.appNames[i]);
-                app.launchApp(this.config.appNames[i]);
-                sleep(this.config.waitTimes.appLaunch);
-
-                var currentPkg = currentPackage();
-                logger.addLog(window, "启动后当前应用: " + currentPkg);
-
-                // 检查包名
-                for (var j = 0; j < this.config.packageNames.length; j++) {
-                    if (currentPkg === this.config.packageNames[j]) {
-                        logger.addLog(window, "✅ 成功打开拼多多APP");
-                        return true;
-                    }
-                }
-
-                // 检查是否包含拼多多相关包名
-                if (currentPkg && (currentPkg.indexOf("pinduoduo") !== -1 ||
-                                  currentPkg.indexOf("pdd") !== -1 ||
-                                  currentPkg.indexOf("xunmeng") !== -1)) {
-                    logger.addLog(window, "✅ 检测到拼多多相关APP");
-                    return true;
-                }
-            } catch (e) {
-                logger.addLog(window, "启动 " + this.config.appNames[i] + " 失败: " + e.message);
-                continue;
-            }
-        }
-
-        logger.addLog(window, "❌ 所有启动方式都失败了");
-        logger.addLog(window, "请确认已安装拼多多APP");
-
-        return false;
-    } catch (e) {
-        logger.addLog(window, "启动应用失败: " + e.message);
-        return false;
-    }
-};
-
-/**
- * 确保在主页
- * @param {Object} window 悬浮窗对象
- */
-ProductPurchase.prototype.ensureAtHomePage = function(window) {
-    logger.addLog(window, "确保在主页...");
-    
-    var homeBtn = text("首页").findOne(2000);
-    if (homeBtn) {
-        homeBtn.click();
-        sleep(2000);
-    }
-};
 
 /**
  * 寻找符合条件的商品
@@ -319,44 +234,7 @@ ProductPurchase.prototype.handlePayment = function(window) {
     return false;
 };
 
-/**
- * 返回到主页
- * @param {Object} window 悬浮窗对象
- */
-ProductPurchase.prototype.returnToHome = function(window) {
-    logger.addLog(window, "开始返回到主页...");
 
-    var retryCount = 0;
-
-    while (retryCount < this.config.maxRetries) {
-        retryCount++;
-        logger.addLog(window, "第 " + retryCount + " 次尝试返回...");
-
-        back();
-        sleep(this.config.waitTimes.back);
-
-        // 检查是否回到主页
-        var homeSelectors = [];
-        for (var i = 0; i < this.config.homeIndicators.length; i++) {
-            var indicator = this.config.homeIndicators[i];
-            homeSelectors.push(text(indicator));
-            homeSelectors.push(textContains(indicator));
-        }
-
-        var isAtHome = false;
-        for (var i = 0; i < homeSelectors.length; i++) {
-            if (homeSelectors[i].exists()) {
-                logger.addLog(window, "成功返回到主页！");
-                isAtHome = true;
-                break;
-            }
-        }
-
-        if (isAtHome) break;
-    }
-
-    logger.addLog(window, "返回流程结束");
-};
 
 /**
  * 等待支付宝页面出现后返回主页
@@ -385,10 +263,10 @@ ProductPurchase.prototype.waitForAlipayAndReturn = function(window) {
     if (alipayFound) {
         logger.addLog(window, "支付宝页面已出现，开始返回主页");
         sleep(1000); // 稍等一下确保页面稳定
-        this.returnToHome(window);
+        this.navigationHelper.goToHomePage(window);
     } else {
         logger.addLog(window, "未检测到支付宝页面，直接返回主页");
-        this.returnToHome(window);
+        this.navigationHelper.goToHomePage(window);
     }
 };
 

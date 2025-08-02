@@ -5,22 +5,14 @@
  * 拼多多应用配置
  */
 const PDD_CONFIG = {
-    // 可能的拼多多包名
+    // 可能的拼多多包名（只保留实际存在的）
     packageNames: [
-        "com.xunmeng.pinduoduo",        // 官方拼多多
-        "com.pdd.android",              // PDD Android版
-        "com.pinduoduo.android",        // 拼多多Android版
-        "com.tencent.mm.plugin.pdd",    // 微信小程序版本
-        "com.pdd.lite"                  // 拼多多极速版
+        "com.xunmeng.pinduoduo"         // 官方拼多多
     ],
 
-    // 应用名称（多个可能的名称）
+    // 应用名称（只保留实际存在的）
     appNames: [
-        "拼多多",
-        "PDD",
-        "Pinduoduo",
-        "拼多多极速版",
-        "PDD极速版"
+        "拼多多"
     ],
     
     // 默认目标价格
