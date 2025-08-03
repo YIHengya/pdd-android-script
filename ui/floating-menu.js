@@ -21,7 +21,7 @@ function FloatingMenu() {
  */
 FloatingMenu.prototype.create = function() {
     this.menuWindow = floaty.rawWindow(
-        <frame id="menuFrame" w="280dp" h="350dp" visibility="gone">
+        <frame id="menuFrame" w="280dp" h="320dp" visibility="gone">
             <card cardCornerRadius="10dp" cardElevation="8dp" margin="5dp" cardBackgroundColor="#f8f9fa">
                 <vertical padding="15dp">
                     <horizontal margin="5dp" gravity="center_vertical">
@@ -60,11 +60,7 @@ FloatingMenu.prototype.create = function() {
 
                     <horizontal margin="5dp" gravity="center">
                         <button id="userInfoBtn" text="更新用户信息" textColor="#ffffff" bg="#4CAF50"
-                                w="90dp" h="35dp" margin="2dp" textSize="9sp"/>
-                        <button id="settingsBtn" text="设置" textColor="#ffffff" bg="#9C27B0"
-                                w="50dp" h="35dp" margin="2dp" textSize="10sp"/>
-                        <button id="helpBtn" text="帮助" textColor="#ffffff" bg="#607D8B"
-                                w="50dp" h="35dp" margin="2dp" textSize="10sp"/>
+                                w="120dp" h="35dp" margin="2dp" textSize="10sp"/>
                     </horizontal>
 
                     <ScrollView h="80dp" w="*" margin="5dp" bg="#f9f9f9">
@@ -210,12 +206,6 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             self.setMode('collect');
         });
 
-        // 设置按钮
-        this.menuWindow.settingsBtn.click(function() {
-            self.addLog("设置功能开发中...");
-            // 这里可以添加设置功能
-        });
-
         // 更新用户信息按钮
         this.menuWindow.userInfoBtn.click(function() {
             self.addLog("正在更新用户信息...");
@@ -228,19 +218,6 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             } else {
                 self.addLog("用户信息功能未初始化");
             }
-        });
-
-        // 设置按钮
-        this.menuWindow.settingsBtn.click(function() {
-            self.addLog("设置功能开发中...");
-            // 这里可以添加设置功能
-        });
-
-        // 帮助按钮
-        this.menuWindow.helpBtn.click(function() {
-            self.addLog("帮助: 选择模式后输入价格点击启动");
-            self.addLog("更新用户信息: 点击获取最新的账号和收件人信息");
-            // 这里可以添加帮助功能
         });
 
     } catch (e) {
@@ -407,7 +384,7 @@ FloatingMenu.prototype.show = function(x, y) {
 
     // 菜单尺寸（dp转px）
     var menuWidth = 280 * density;
-    var menuHeight = 350 * density;
+    var menuHeight = 320 * density;
     var margin = 10 * density;
 
     // 计算菜单位置，确保完全在屏幕内
