@@ -11,6 +11,7 @@ const ProductPurchase = require('./modules/product-purchase.js');
 const ProductCollect = require('./modules/product-collect.js');
 const UserInfo = require('./modules/user-info.js');
 const UserInfoManager = require('./utils/user-info-manager.js');
+const { GlobalStopManager } = require('./utils/common.js');
 
 /**
  * 主程序构造函数
@@ -59,8 +60,14 @@ MainApp.prototype.setupCallbacks = function() {
 
     // 设置脚本启动回调
     this.floatingWindow.setOnStartCallback(function(window, priceRange, mode, purchaseQuantity) {
+        // 重置全局停止标志
+        GlobalStopManager.reset();
+
         // 在新线程中执行脚本，避免阻塞UI线程
         self.scriptThread = threads.start(function() {
+            // 注册线程到全局停止管理器
+            GlobalStopManager.registerThread(self.scriptThread);
+
             try {
                 // 首先获取用户信息
                 var logger = require('./utils/logger.js');
@@ -93,6 +100,9 @@ MainApp.prototype.setupCallbacks = function() {
                     }
                 });
             } finally {
+                // 从全局停止管理器注销线程
+                GlobalStopManager.unregisterThread(self.scriptThread);
+
                 // 脚本结束时自动关闭开关
                 ui.run(function() {
                     if (window && window.scriptSwitch) {
@@ -106,9 +116,11 @@ MainApp.prototype.setupCallbacks = function() {
 
     // 设置脚本停止回调
     this.floatingWindow.setOnStopCallback(function() {
-        // 停止脚本线程
+        // 使用全局停止管理器停止所有线程
+        GlobalStopManager.shutdownAll();
+
+        // 清理本地线程引用
         if (self.scriptThread) {
-            self.scriptThread.interrupt();
             self.scriptThread = null;
         }
     });
@@ -165,9 +177,17 @@ MainApp.prototype.start = function() {
  */
 MainApp.prototype.keepAlive = function() {
     // 保持悬浮窗运行
-    setInterval(function() {
+    var intervalId = setInterval(function() {
+        // 检查是否需要停止
+        if (GlobalStopManager.isStopRequested()) {
+            clearInterval(intervalId);
+            return;
+        }
         // 空函数，保持脚本运行
     }, COMMON_CONFIG.keepAliveInterval);
+
+    // 注册定时器到全局停止管理器
+    GlobalStopManager.registerInterval(intervalId);
 };
 
 /**

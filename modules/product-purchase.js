@@ -2,7 +2,7 @@
 // 整合拼多多自动购买的所有功能
 
 const { PDD_CONFIG } = require('../config/app-config.js');
-const { parsePrice, safeClick, scrollDownWithRandomCoords } = require('../utils/common.js');
+const { parsePrice, safeClick, scrollDownWithRandomCoords, GlobalStopManager } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
 const ApiClient = require('../utils/api-client.js');
 const ProductInfoExtractor = require('../utils/product-info.js');
@@ -65,6 +65,12 @@ ProductPurchase.prototype.execute = function(window, priceRange, userName, purch
         // 4. 循环购买指定数量的商品
         var successCount = 0;
         for (var i = 0; i < purchaseQuantity; i++) {
+            // 检查是否需要停止
+            if (GlobalStopManager.isStopRequested()) {
+                logger.addLog(window, "🛑 检测到停止信号，终止购买流程");
+                break;
+            }
+
             logger.addLog(window, "=== 开始购买第 " + (i + 1) + " 件商品 ===");
 
             // 寻找商品（第一次不强制滚动，后续强制滚动寻找新商品）
@@ -171,11 +177,22 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
     }
 
     while (scrollCount < maxScrolls) {
+        // 检查是否需要停止
+        if (GlobalStopManager.isStopRequested()) {
+            logger.addLog(window, "🛑 检测到停止信号，终止商品搜索");
+            break;
+        }
+
         logger.addLog(window, "第 " + (scrollCount + 1) + " 次搜索商品...");
 
         var allTexts = textMatches(/.*/).find();
 
         for (var i = 0; i < allTexts.length; i++) {
+            // 检查是否需要停止
+            if (GlobalStopManager.isStopRequested()) {
+                logger.addLog(window, "🛑 检测到停止信号，终止元素遍历");
+                return null;
+            }
             var element = allTexts[i];
             var text = element.text();
 

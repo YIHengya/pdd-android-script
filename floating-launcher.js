@@ -10,6 +10,7 @@ const FloatingWindow = require('./ui/floating-window.js');
 const ProductPurchase = require('./modules/product-purchase.js');
 const ProductCollect = require('./modules/product-collect.js');
 const UserInfo = require('./modules/user-info.js');
+const { GlobalStopManager } = require('./utils/common.js');
 
 /**
  * 悬浮窗应用构造函数
@@ -54,8 +55,14 @@ FloatingApp.prototype.setupCallbacks = function() {
 
     // 设置脚本启动回调
     this.floatingWindow.setOnStartCallback(function(window, priceRange, mode) {
+        // 重置全局停止标志
+        GlobalStopManager.reset();
+
         // 在新线程中执行脚本，避免阻塞UI线程
         self.scriptThread = threads.start(function() {
+            // 注册线程到全局停止管理器
+            GlobalStopManager.registerThread(self.scriptThread);
+
             try {
                 // 首先获取用户信息
                 var logger = require('./utils/logger.js');
@@ -120,9 +127,11 @@ FloatingApp.prototype.setupCallbacks = function() {
 
     // 设置脚本停止回调
     this.floatingWindow.setOnStopCallback(function() {
-        // 停止脚本线程
+        // 使用全局停止管理器停止所有线程
+        GlobalStopManager.shutdownAll();
+
+        // 清理本地线程引用
         if (self.scriptThread) {
-            self.scriptThread.interrupt();
             self.scriptThread = null;
         }
     });

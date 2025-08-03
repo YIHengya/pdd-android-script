@@ -2,7 +2,7 @@
 // 负责自动收藏符合条件的商品
 
 const { PDD_CONFIG } = require('../config/app-config.js');
-const { parsePrice, safeClick, scrollDownWithRandomCoords } = require('../utils/common.js');
+const { parsePrice, safeClick, scrollDownWithRandomCoords, GlobalStopManager } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
 
 /**
@@ -122,12 +122,23 @@ ProductCollect.prototype.batchCollectProducts = function(window, priceRange, max
     var maxScrolls = this.config.maxScrolls * 2; // 收藏模式下多滚动一些
 
     while (collectCount < maxCount && scrollCount < maxScrolls) {
+        // 检查是否需要停止
+        if (GlobalStopManager.isStopRequested()) {
+            logger.addLog(window, "🛑 检测到停止信号，终止收藏流程");
+            break;
+        }
+
         logger.addLog(window, "第 " + (scrollCount + 1) + " 次搜索商品进行收藏...");
 
         // 寻找当前屏幕上的商品
         var products = this.findProductsOnScreen(priceRange);
-        
+
         for (var i = 0; i < products.length && collectCount < maxCount; i++) {
+            // 检查是否需要停止
+            if (GlobalStopManager.isStopRequested()) {
+                logger.addLog(window, "🛑 检测到停止信号，终止商品收藏");
+                return collectCount;
+            }
             var product = products[i];
             logger.addLog(window, "尝试收藏商品: " + product.text + " (价格: " + product.price + " 元)");
 

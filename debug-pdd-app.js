@@ -175,7 +175,18 @@ debugWindow.closeBtn.click(function() {
 addLog("调试工具已启动");
 addLog("请先点击'检测应用'按钮");
 
+// 导入全局停止管理器
+const { GlobalStopManager } = require('./utils/common.js');
+
 // 保持脚本运行
-setInterval(function() {
+var keepAliveInterval = setInterval(function() {
+    // 检查是否需要停止
+    if (GlobalStopManager.isStopRequested()) {
+        clearInterval(keepAliveInterval);
+        return;
+    }
     // 空函数，保持脚本运行
 }, 1000);
+
+// 注册定时器到全局停止管理器
+GlobalStopManager.registerInterval(keepAliveInterval);

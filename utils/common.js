@@ -2,6 +2,126 @@
 // 提供通用的工具函数
 
 /**
+ * 全局停止管理器
+ */
+var GlobalStopManager = {
+    // 停止标志
+    shouldStop: false,
+
+    // 所有活跃的线程
+    activeThreads: [],
+
+    // 所有活跃的定时器
+    activeIntervals: [],
+
+    /**
+     * 设置停止标志
+     */
+    stop: function() {
+        this.shouldStop = true;
+        console.log("GlobalStopManager: 设置全局停止标志");
+    },
+
+    /**
+     * 重置停止标志
+     */
+    reset: function() {
+        this.shouldStop = false;
+        console.log("GlobalStopManager: 重置全局停止标志");
+    },
+
+    /**
+     * 检查是否应该停止
+     * @returns {boolean} 是否应该停止
+     */
+    isStopRequested: function() {
+        return this.shouldStop;
+    },
+
+    /**
+     * 注册线程
+     * @param {Object} thread 线程对象
+     */
+    registerThread: function(thread) {
+        if (thread && this.activeThreads.indexOf(thread) === -1) {
+            this.activeThreads.push(thread);
+            console.log("GlobalStopManager: 注册线程，当前活跃线程数: " + this.activeThreads.length);
+        }
+    },
+
+    /**
+     * 注销线程
+     * @param {Object} thread 线程对象
+     */
+    unregisterThread: function(thread) {
+        var index = this.activeThreads.indexOf(thread);
+        if (index !== -1) {
+            this.activeThreads.splice(index, 1);
+            console.log("GlobalStopManager: 注销线程，当前活跃线程数: " + this.activeThreads.length);
+        }
+    },
+
+    /**
+     * 注册定时器
+     * @param {number} intervalId 定时器ID
+     */
+    registerInterval: function(intervalId) {
+        if (intervalId && this.activeIntervals.indexOf(intervalId) === -1) {
+            this.activeIntervals.push(intervalId);
+            console.log("GlobalStopManager: 注册定时器，当前活跃定时器数: " + this.activeIntervals.length);
+        }
+    },
+
+    /**
+     * 停止所有线程和定时器
+     */
+    shutdownAll: function() {
+        console.log("GlobalStopManager: 开始停止所有线程和定时器...");
+
+        // 设置停止标志
+        this.stop();
+
+        // 停止所有线程
+        for (var i = 0; i < this.activeThreads.length; i++) {
+            try {
+                if (this.activeThreads[i] && this.activeThreads[i].interrupt) {
+                    this.activeThreads[i].interrupt();
+                    console.log("GlobalStopManager: 停止线程 " + i);
+                }
+            } catch (e) {
+                console.error("GlobalStopManager: 停止线程失败: " + e.message);
+            }
+        }
+
+        // 清空线程列表
+        this.activeThreads = [];
+
+        // 清除所有定时器
+        for (var j = 0; j < this.activeIntervals.length; j++) {
+            try {
+                clearInterval(this.activeIntervals[j]);
+                console.log("GlobalStopManager: 清除定时器 " + j);
+            } catch (e) {
+                console.error("GlobalStopManager: 清除定时器失败: " + e.message);
+            }
+        }
+
+        // 清空定时器列表
+        this.activeIntervals = [];
+
+        console.log("GlobalStopManager: 所有线程和定时器已停止");
+
+        // 调用AutoJS的线程停止方法
+        try {
+            threads.shutDownAll();
+            console.log("GlobalStopManager: 调用 threads.shutDownAll() 成功");
+        } catch (e) {
+            console.error("GlobalStopManager: 调用 threads.shutDownAll() 失败: " + e.message);
+        }
+    }
+};
+
+/**
  * 解析价格文本，提取数字
  * @param {string} priceText 价格文本
  * @returns {number|null} 解析后的价格数字，失败返回null
@@ -134,6 +254,7 @@ function scrollDownWithRandomCoords(duration) {
 }
 
 module.exports = {
+    GlobalStopManager,
     parsePrice,
     wait,
     getTimestamp,

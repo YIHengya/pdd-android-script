@@ -2,6 +2,7 @@
 // 负责创建和管理悬浮菜单界面
 
 const logger = require('../utils/logger.js');
+const { GlobalStopManager } = require('../utils/common.js');
 
 /**
  * 悬浮菜单构造函数
@@ -74,7 +75,9 @@ FloatingMenu.prototype.create = function() {
 
                     <horizontal margin="5dp" gravity="center">
                         <button id="userInfoBtn" text="更新用户信息" textColor="#ffffff" bg="#4CAF50"
-                                w="120dp" h="35dp" margin="2dp" textSize="10sp"/>
+                                w="100dp" h="35dp" margin="2dp" textSize="10sp"/>
+                        <button id="emergencyStopBtn" text="紧急停止" textColor="#ffffff" bg="#F44336"
+                                w="80dp" h="35dp" margin="2dp" textSize="10sp"/>
                     </horizontal>
 
                     <ScrollView h="80dp" w="*" margin="5dp" bg="#f9f9f9">
@@ -265,6 +268,27 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             }
         });
 
+        // 紧急停止按钮
+        this.menuWindow.emergencyStopBtn.click(function() {
+            self.addLog("🚨 紧急停止所有脚本...");
+
+            // 先关闭开关
+            if (self.menuWindow.scriptSwitch) {
+                self.menuWindow.scriptSwitch.setChecked(false);
+            }
+
+            // 使用全局停止管理器强制停止所有线程
+            GlobalStopManager.shutdownAll();
+
+            self.addLog("🛑 所有脚本已紧急停止");
+            self.updateStatus("紧急停止");
+
+            // 调用停止回调
+            if (self.onStopCallback) {
+                self.onStopCallback();
+            }
+        });
+
     } catch (e) {
         console.error("Error setting up event handlers: " + e.message);
         // 如果设置事件处理器失败，稍后重试
@@ -321,6 +345,11 @@ FloatingMenu.prototype.startScript = function() {
  * 停止脚本
  */
 FloatingMenu.prototype.stopScript = function() {
+    this.addLog("正在停止脚本...");
+
+    // 使用全局停止管理器停止所有线程
+    GlobalStopManager.shutdownAll();
+
     this.addLog("脚本已停止");
     this.updateStatus("已停止");
 

@@ -302,7 +302,18 @@ if (!auto.service) {
     toast("请先开启无障碍服务");
 }
 
+// 导入全局停止管理器
+const { GlobalStopManager } = require('./utils/common.js');
+
 // 保持悬浮窗运行
-setInterval(function() {
+var keepAliveInterval = setInterval(function() {
+    // 检查是否需要停止
+    if (GlobalStopManager.isStopRequested()) {
+        clearInterval(keepAliveInterval);
+        return;
+    }
     // 空函数，保持脚本运行
 }, 1000);
+
+// 注册定时器到全局停止管理器
+GlobalStopManager.registerInterval(keepAliveInterval);
