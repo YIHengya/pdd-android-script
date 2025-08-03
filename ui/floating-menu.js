@@ -59,12 +59,12 @@ FloatingMenu.prototype.create = function() {
                     </horizontal>
 
                     <horizontal margin="5dp" gravity="center">
-                        <button id="userInfoBtn" text="用户信息" textColor="#ffffff" bg="#4CAF50"
-                                w="80dp" h="35dp" margin="2dp" textSize="10sp"/>
+                        <button id="userInfoBtn" text="更新用户信息" textColor="#ffffff" bg="#4CAF50"
+                                w="90dp" h="35dp" margin="2dp" textSize="9sp"/>
                         <button id="settingsBtn" text="设置" textColor="#ffffff" bg="#9C27B0"
-                                w="60dp" h="35dp" margin="2dp" textSize="10sp"/>
+                                w="50dp" h="35dp" margin="2dp" textSize="10sp"/>
                         <button id="helpBtn" text="帮助" textColor="#ffffff" bg="#607D8B"
-                                w="60dp" h="35dp" margin="2dp" textSize="10sp"/>
+                                w="50dp" h="35dp" margin="2dp" textSize="10sp"/>
                     </horizontal>
 
                     <ScrollView h="80dp" w="*" margin="5dp" bg="#f9f9f9">
@@ -216,13 +216,14 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             // 这里可以添加设置功能
         });
 
-        // 用户信息按钮
+        // 更新用户信息按钮
         this.menuWindow.userInfoBtn.click(function() {
-            self.addLog("正在获取用户信息...");
+            self.addLog("正在更新用户信息...");
             if (self.onUserInfoCallback) {
                 self.onUserInfoCallback(self.menuWindow, function(userInfo) {
                     // 获取成功后更新显示
                     self.updateRecipientInfo(userInfo);
+                    self.addLog("✅ 用户信息更新完成");
                 });
             } else {
                 self.addLog("用户信息功能未初始化");
@@ -238,7 +239,7 @@ FloatingMenu.prototype.setupEventHandlers = function() {
         // 帮助按钮
         this.menuWindow.helpBtn.click(function() {
             self.addLog("帮助: 选择模式后输入价格点击启动");
-            self.addLog("用户信息: 点击获取当前账号和收件人信息");
+            self.addLog("更新用户信息: 点击获取最新的账号和收件人信息");
             // 这里可以添加帮助功能
         });
 

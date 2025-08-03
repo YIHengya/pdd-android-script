@@ -279,25 +279,24 @@ FloatingWindow.prototype.setOnUserInfoCallback = function(callback) {
 };
 
 /**
- * 设置用户信息回调
- * @param {Function} callback 回调函数
- */
-FloatingWindow.prototype.setOnUserInfoCallback = function(callback) {
-    if (this.floatingMenu) {
-        this.floatingMenu.setOnUserInfoCallback(callback);
-    }
-};
-
-/**
  * 关闭悬浮球
  */
 FloatingWindow.prototype.close = function() {
     if (this.ballWindow) {
         this.ballWindow.close();
+        this.ballWindow = null;
     }
     if (this.floatingMenu) {
         this.floatingMenu.close();
+        this.floatingMenu = null;
     }
+};
+
+/**
+ * 关闭悬浮球并退出应用
+ */
+FloatingWindow.prototype.closeAndExit = function() {
+    this.close();
     exit();
 };
 

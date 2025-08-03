@@ -1,5 +1,5 @@
-// 拼多多自动购买脚本 - 主入口文件
-// 功能：协调各个模块，提供统一的入口点
+// 悬浮窗启动器
+// 专门用于从主界面启动悬浮窗功能
 
 "ui";
 
@@ -10,24 +10,23 @@ const FloatingWindow = require('./ui/floating-window.js');
 const ProductPurchase = require('./modules/product-purchase.js');
 const ProductCollect = require('./modules/product-collect.js');
 const UserInfo = require('./modules/user-info.js');
-const UserInfoManager = require('./utils/user-info-manager.js');
 
 /**
- * 主程序构造函数
+ * 悬浮窗应用构造函数
  */
-function MainApp() {
+function FloatingApp() {
     this.floatingWindow = null;
     this.productPurchase = null;
     this.productCollect = null;
     this.userInfo = null;
-    this.userInfoManager = null; // 用户信息管理器
     this.scriptThread = null;
+    this.currentUserData = null;
 }
 
 /**
  * 初始化应用
  */
-MainApp.prototype.init = function() {
+FloatingApp.prototype.init = function() {
     // 检查权限
     permissions.checkPermissions();
 
@@ -36,10 +35,6 @@ MainApp.prototype.init = function() {
     this.productPurchase = new ProductPurchase();
     this.productCollect = new ProductCollect();
     this.userInfo = new UserInfo();
-    this.userInfoManager = new UserInfoManager();
-
-    // 设置用户信息管理器的UserInfo实例
-    this.userInfoManager.setUserInfoInstance(this.userInfo);
 
     // 创建悬浮窗
     this.floatingWindow.create();
@@ -54,7 +49,7 @@ MainApp.prototype.init = function() {
 /**
  * 设置回调函数
  */
-MainApp.prototype.setupCallbacks = function() {
+FloatingApp.prototype.setupCallbacks = function() {
     var self = this;
 
     // 设置脚本启动回调
@@ -66,15 +61,34 @@ MainApp.prototype.setupCallbacks = function() {
                 var logger = require('./utils/logger.js');
                 logger.addLog(window, "=== 开始获取用户信息 ===");
 
-                var userInfo = self.userInfoManager.getCompleteUserInfo(window);
-                if (!userInfo) {
+                var userInfo = self.userInfo.getCompleteUserInfo(window);
+                if (userInfo) {
+                    self.currentUserData = userInfo;
+                    logger.addLog(window, "✅ 用户信息获取成功");
+                    logger.addLog(window, "用户ID: " + userInfo.user.userId);
+                    if (userInfo.recipient) {
+                        logger.addLog(window, "收件人: " + (userInfo.recipient.name || "未获取"));
+                        if (userInfo.recipient.phone) {
+                            logger.addLog(window, "手机号: " + userInfo.recipient.phone.substring(0, 3) + "****" + userInfo.recipient.phone.substring(7));
+                        }
+                        if (userInfo.recipient.address) {
+                            logger.addLog(window, "地址: " + userInfo.recipient.address);
+                        }
+                    }
+                } else {
                     logger.addLog(window, "⚠️ 用户信息获取失败，继续执行功能");
                 }
 
                 logger.addLog(window, "=== 开始执行主要功能 ===");
 
                 // 获取用户名用于API调用
-                var userName = self.userInfoManager.getUserName();
+                var userName = "未知用户";
+                if (self.currentUserData && self.currentUserData.recipient && self.currentUserData.recipient.name) {
+                    userName = self.currentUserData.recipient.name;
+                } else if (self.currentUserData && self.currentUserData.user && self.currentUserData.user.displayName) {
+                    userName = self.currentUserData.user.displayName;
+                }
+
                 logger.addLog(window, "使用用户名: " + userName);
 
                 // 根据模式选择执行功能
@@ -117,7 +131,7 @@ MainApp.prototype.setupCallbacks = function() {
 /**
  * 设置用户信息回调
  */
-MainApp.prototype.setupUserInfoCallback = function() {
+FloatingApp.prototype.setupUserInfoCallback = function() {
     var self = this;
 
     // 设置用户信息获取回调
@@ -128,8 +142,24 @@ MainApp.prototype.setupUserInfoCallback = function() {
                 var logger = require('./utils/logger.js');
                 logger.addLog(window, "=== 手动获取用户信息 ===");
 
-                var userInfo = self.userInfoManager.getCompleteUserInfo(window, true); // 强制刷新
+                var userInfo = self.userInfo.getCompleteUserInfo(window);
                 if (userInfo) {
+                    self.currentUserData = userInfo;
+                    logger.addLog(window, "✅ 用户信息获取成功");
+                    logger.addLog(window, "用户ID: " + userInfo.user.userId);
+                    logger.addLog(window, "用户名: " + (userInfo.user.displayName || "未获取"));
+
+                    if (userInfo.recipient) {
+                        logger.addLog(window, "收件人: " + (userInfo.recipient.name || "未获取"));
+                        if (userInfo.recipient.phone) {
+                            logger.addLog(window, "手机号: " + userInfo.recipient.phone);
+                        }
+                        if (userInfo.recipient.address) {
+                            logger.addLog(window, "地址: " + userInfo.recipient.address);
+                        }
+                        logger.addLog(window, "默认地址: " + (userInfo.recipient.isDefault ? "是" : "否"));
+                    }
+
                     logger.addLog(window, "=== 用户信息获取完成 ===");
 
                     // 如果提供了回调函数，调用它来更新UI显示
@@ -155,7 +185,7 @@ MainApp.prototype.setupUserInfoCallback = function() {
 /**
  * 启动应用
  */
-MainApp.prototype.start = function() {
+FloatingApp.prototype.start = function() {
     this.init();
     this.keepAlive();
 };
@@ -163,7 +193,7 @@ MainApp.prototype.start = function() {
 /**
  * 保持应用运行
  */
-MainApp.prototype.keepAlive = function() {
+FloatingApp.prototype.keepAlive = function() {
     // 保持悬浮窗运行
     setInterval(function() {
         // 空函数，保持脚本运行
@@ -171,78 +201,22 @@ MainApp.prototype.keepAlive = function() {
 };
 
 /**
- * 获取当前用户信息
- * @returns {Object|null} 当前用户信息
+ * 关闭悬浮窗
  */
-MainApp.prototype.getCurrentUserData = function() {
-    return this.userInfoManager.getCachedUserData();
-};
-
-/**
- * 获取当前用户ID
- * @returns {string|null} 当前用户ID
- */
-MainApp.prototype.getCurrentUserId = function() {
-    return this.userInfoManager.getUserId();
-};
-
-/**
- * 获取当前收件人信息
- * @returns {Object|null} 当前收件人信息
- */
-MainApp.prototype.getCurrentRecipientInfo = function() {
-    return this.userInfoManager.getRecipientInfo();
-};
-
-/**
- * 手动刷新用户信息
- * @param {Object} window 悬浮窗对象
- * @returns {boolean} 是否刷新成功
- */
-MainApp.prototype.refreshUserInfo = function(window) {
-    return this.userInfoManager.refreshUserInfo(window);
-};
-
-/**
- * 获取完整的手机号（不带星号，用于实际业务逻辑）
- * @returns {string|null} 完整的手机号
- */
-MainApp.prototype.getFullPhoneNumber = function() {
-    return this.userInfoManager.getFullPhoneNumber();
-};
-
-/**
- * 获取完整的地址信息（用于实际业务逻辑）
- * @returns {string|null} 完整的地址
- */
-MainApp.prototype.getFullAddress = function() {
-    return this.userInfoManager.getFullAddress();
-};
-
-/**
- * 获取收件人姓名
- * @returns {string|null} 收件人姓名
- */
-MainApp.prototype.getRecipientName = function() {
-    return this.userInfoManager.getRecipientName();
-};
-
-// 启动主程序
-function main() {
-    // 检查是否通过参数启动悬浮窗模式
-    if (engines.myEngine().getTag("mode") === "floating") {
-        // 直接启动悬浮窗模式
-        const app = new MainApp();
-        app.start();
-    } else {
-        // 启动主界面
-        const MainUI = require('./ui/main-ui.js');
-        const mainUI = new MainUI();
-        mainUI.show();
+FloatingApp.prototype.close = function() {
+    if (this.floatingWindow) {
+        this.floatingWindow.close();
     }
+    if (this.scriptThread) {
+        this.scriptThread.interrupt();
+    }
+};
+
+// 启动悬浮窗应用
+function main() {
+    const app = new FloatingApp();
+    app.start();
 }
 
 // 程序入口
 main();
-
-

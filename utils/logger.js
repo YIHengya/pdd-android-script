@@ -3,27 +3,35 @@
 
 /**
  * 添加日志到悬浮窗
- * @param {Object} window 悬浮窗对象
+ * @param {Object} window 悬浮窗对象（可以为null）
  * @param {string} message 日志消息
  */
 function addLog(window, message) {
     var timestamp = new Date().toLocaleTimeString();
     var logMessage = "[" + timestamp + "] " + message;
-    
-    ui.run(function() {
-        var currentLog = window.logText.getText();
-        var newLog = currentLog + "\n" + logMessage;
-        
-        // 限制日志长度，避免内存溢出
-        var lines = newLog.split('\n');
-        if (lines.length > 20) {
-            lines = lines.slice(-20);
-            newLog = lines.join('\n');
-        }
-        
-        window.logText.setText(newLog);
-    });
-    
+
+    // 如果window存在且有logText属性，则更新悬浮窗日志
+    if (window && window.logText) {
+        ui.run(function() {
+            try {
+                var currentLog = window.logText.getText();
+                var newLog = currentLog + "\n" + logMessage;
+
+                // 限制日志长度，避免内存溢出
+                var lines = newLog.split('\n');
+                if (lines.length > 20) {
+                    lines = lines.slice(-20);
+                    newLog = lines.join('\n');
+                }
+
+                window.logText.setText(newLog);
+            } catch (e) {
+                console.error("更新悬浮窗日志失败: " + e.message);
+            }
+        });
+    }
+
+    // 始终输出到控制台
     console.log(logMessage);
 }
 
