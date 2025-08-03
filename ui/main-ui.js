@@ -102,20 +102,29 @@ MainUI.prototype.show = function() {
                                             textColor="#ffffff" bg="#4CAF50"
                                             w="100dp" h="32dp" textSize="11sp"/>
                                 </horizontal>
-                                
+
                                 <horizontal gravity="center_vertical" margin="0 0 4dp 0">
                                     <text text="姓名:" textSize="14sp" textColor="#666666" w="50dp"/>
                                     <text id="userName" text="未获取" textSize="14sp" textColor="#333333" layout_weight="1"/>
                                 </horizontal>
-                                
+
                                 <horizontal gravity="center_vertical" margin="0 0 4dp 0">
                                     <text text="手机:" textSize="14sp" textColor="#666666" w="50dp"/>
                                     <text id="userPhone" text="未获取" textSize="14sp" textColor="#333333" layout_weight="1"/>
                                 </horizontal>
-                                
-                                <horizontal gravity="center_vertical">
+
+                                <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                                     <text text="地址:" textSize="14sp" textColor="#666666" w="50dp"/>
                                     <text id="userAddress" text="未获取" textSize="12sp" textColor="#333333" layout_weight="1" maxLines="2"/>
+                                </horizontal>
+
+                                <horizontal gravity="center" margin="4dp 0 0 0">
+                                    <button id="saveUserBtn" text="保存到本地"
+                                            textColor="#ffffff" bg="#2196F3"
+                                            w="80dp" h="28dp" textSize="10sp" margin="2dp"/>
+                                    <button id="clearUserBtn" text="清除本地"
+                                            textColor="#ffffff" bg="#FF5722"
+                                            w="80dp" h="28dp" textSize="10sp" margin="2dp"/>
                                 </horizontal>
                             </vertical>
                         </card>
@@ -188,6 +197,8 @@ MainUI.prototype.show = function() {
  * 初始化模块
  */
 MainUI.prototype.initializeModules = function() {
+    var self = this;
+
     this.productPurchase = new ProductPurchase();
     this.productCollect = new ProductCollect();
     this.userInfo = new UserInfo();
@@ -195,6 +206,9 @@ MainUI.prototype.initializeModules = function() {
 
     // 设置用户信息管理器的UserInfo实例
     this.userInfoManager.setUserInfoInstance(this.userInfo);
+
+    // 自动加载本地保存的用户信息
+    this.loadLocalUserInfo();
 };
 
 /**
@@ -276,6 +290,16 @@ MainUI.prototype.setupEventHandlers = function() {
     // 更新用户信息按钮
     ui.refreshUserBtn.click(function() {
         self.refreshUserInfo();
+    });
+
+    // 保存用户信息到本地按钮
+    ui.saveUserBtn.click(function() {
+        self.saveUserInfoToLocal();
+    });
+
+    // 清除本地用户信息按钮
+    ui.clearUserBtn.click(function() {
+        self.clearLocalUserInfo();
     });
 
     // 启动脚本按钮
@@ -606,7 +630,13 @@ MainUI.prototype.showHelp = function() {
         "2. 设置价格区间：调整最低价和最高价\n" +
         "3. 选择模式：购买模式或收藏模式\n" +
         "4. 更新用户信息：获取最新的账号和收件人信息\n" +
-        "5. 启动脚本：开始自动化操作\n\n" +
+        "5. 保存到本地：将用户信息保存到本地存储\n" +
+        "6. 清除本地：清除本地保存的用户信息\n" +
+        "7. 启动脚本：开始自动化操作\n\n" +
+        "本地存储功能：\n" +
+        "• 应用启动时自动加载本地保存的用户信息\n" +
+        "• 获取用户信息后自动保存到本地\n" +
+        "• 存储位置：/sdcard/PDD_AutoScript/\n\n" +
         "注意：使用前请确保已登录拼多多账号并设置收货地址"
     );
 };
@@ -626,6 +656,97 @@ MainUI.prototype.showAbout = function() {
         "使用须知：\n" +
         "请遵守相关法律法规，合理使用自动化工具"
     );
+};
+
+/**
+ * 加载本地保存的用户信息
+ */
+MainUI.prototype.loadLocalUserInfo = function() {
+    var self = this;
+
+    try {
+        // 检查是否有本地保存的用户信息
+        if (this.userInfoManager.hasLocalUserInfo()) {
+            this.addLog("发现本地保存的用户信息，正在加载...");
+
+            // 在后台线程中加载，避免阻塞UI
+            threads.start(function() {
+                try {
+                    var userInfo = self.userInfoManager.initializeFromLocal();
+                    if (userInfo) {
+                        ui.run(function() {
+                            self.updateUserInfoDisplay(userInfo);
+                            self.addLog("✅ 本地用户信息加载成功");
+                        });
+                    }
+                } catch (e) {
+                    ui.run(function() {
+                        self.addLog("加载本地用户信息出错: " + e.message);
+                    });
+                }
+            });
+        } else {
+            this.addLog("本地没有保存的用户信息，请点击'更新用户信息'获取");
+        }
+    } catch (e) {
+        this.addLog("检查本地用户信息失败: " + e.message);
+    }
+};
+
+/**
+ * 保存当前用户信息到本地
+ */
+MainUI.prototype.saveUserInfoToLocal = function() {
+    var self = this;
+
+    threads.start(function() {
+        try {
+            var success = self.userInfoManager.manualSaveToLocal();
+            ui.run(function() {
+                if (success) {
+                    self.addLog("✅ 用户信息已手动保存到本地");
+                } else {
+                    self.addLog("❌ 保存用户信息到本地失败");
+                }
+            });
+        } catch (e) {
+            ui.run(function() {
+                self.addLog("保存用户信息出错: " + e.message);
+            });
+        }
+    });
+};
+
+/**
+ * 清除本地保存的用户信息
+ */
+MainUI.prototype.clearLocalUserInfo = function() {
+    var self = this;
+
+    dialogs.confirm("确认清除", "确定要清除本地保存的用户信息吗？").then(function(confirmed) {
+        if (confirmed) {
+            threads.start(function() {
+                try {
+                    var success = self.userInfoManager.clearLocalUserInfo();
+                    ui.run(function() {
+                        if (success) {
+                            self.addLog("✅ 本地用户信息已清除");
+                            // 清空UI显示
+                            ui.userName.setText("未获取");
+                            ui.userPhone.setText("未获取");
+                            ui.userAddress.setText("未获取");
+                        } else {
+                            self.addLog("❌ 清除本地用户信息失败");
+                        }
+                    });
+                } catch (e) {
+                    ui.run(function() {
+                        self.addLog("清除本地用户信息出错: " + e.message);
+                    });
+                }
+            });
+        }
+    });
 };
 
 /**

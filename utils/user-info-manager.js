@@ -2,6 +2,7 @@
 // 统一管理用户信息的获取、存储、格式化和显示
 
 const logger = require('./logger.js');
+const LocalStorage = require('./local-storage.js');
 
 /**
  * 用户信息管理器构造函数
@@ -11,6 +12,8 @@ function UserInfoManager() {
     this.currentUserData = null; // 缓存的用户信息
     this.lastUpdateTime = null; // 最后更新时间
     this.cacheTimeout = 5 * 60 * 1000; // 缓存超时时间：5分钟
+    this.localStorage = new LocalStorage(); // 本地存储管理器
+    this.autoSave = true; // 是否自动保存到本地
 }
 
 /**
@@ -22,22 +25,30 @@ UserInfoManager.prototype.setUserInfoInstance = function(userInfoInstance) {
 };
 
 /**
- * 获取完整用户信息（带缓存）
+ * 获取完整用户信息（带缓存和本地存储）
  * @param {Object} window 悬浮窗对象
  * @param {boolean} forceRefresh 是否强制刷新
  * @returns {Object|null} 用户信息对象
  */
 UserInfoManager.prototype.getCompleteUserInfo = function(window, forceRefresh) {
     try {
-        // 检查缓存是否有效
+        // 检查内存缓存是否有效
         if (!forceRefresh && this.isCacheValid()) {
-            logger.addLog(window, "使用缓存的用户信息");
+            logger.addLog(window, "使用内存缓存的用户信息");
             return this.currentUserData;
         }
 
+        // 如果没有强制刷新，先尝试从本地存储加载
+        if (!forceRefresh && !this.currentUserData) {
+            var localUserInfo = this.loadFromLocal(window);
+            if (localUserInfo) {
+                return localUserInfo;
+            }
+        }
+
         // 获取新的用户信息
-        logger.addLog(window, "开始获取用户信息...");
-        
+        logger.addLog(window, "开始从应用获取用户信息...");
+
         if (!this.userInfo) {
             logger.addLog(window, "UserInfo模块未初始化");
             return null;
@@ -47,6 +58,12 @@ UserInfoManager.prototype.getCompleteUserInfo = function(window, forceRefresh) {
         if (userInfo) {
             this.currentUserData = userInfo;
             this.lastUpdateTime = Date.now();
+
+            // 自动保存到本地
+            if (this.autoSave) {
+                this.saveToLocal(window, userInfo);
+            }
+
             this.logUserInfoSuccess(window, userInfo);
             return userInfo;
         } else {
@@ -254,14 +271,137 @@ UserInfoManager.prototype.updateUIDisplay = function(uiElements, userInfo) {
  */
 UserInfoManager.prototype.isUserInfoComplete = function() {
     if (!this.currentUserData) return false;
-    
+
     var hasUser = this.currentUserData.user && this.currentUserData.user.userId;
-    var hasRecipient = this.currentUserData.recipient && 
-                      this.currentUserData.recipient.name && 
-                      this.currentUserData.recipient.phone && 
+    var hasRecipient = this.currentUserData.recipient &&
+                      this.currentUserData.recipient.name &&
+                      this.currentUserData.recipient.phone &&
                       this.currentUserData.recipient.address;
-    
+
     return hasUser && hasRecipient;
+};
+
+/**
+ * 从本地存储加载用户信息
+ * @param {Object} window 悬浮窗对象
+ * @returns {Object|null} 用户信息对象
+ */
+UserInfoManager.prototype.loadFromLocal = function(window) {
+    try {
+        logger.addLog(window, "正在从本地加载用户信息...");
+
+        var userInfo = this.localStorage.loadUserInfo();
+        if (userInfo) {
+            this.currentUserData = userInfo;
+            this.lastUpdateTime = Date.now(); // 设置为当前时间，避免立即过期
+
+            logger.addLog(window, "✅ 从本地加载用户信息成功");
+            this.logUserInfoSuccess(window, userInfo);
+            return userInfo;
+        } else {
+            logger.addLog(window, "本地没有保存的用户信息");
+            return null;
+        }
+    } catch (e) {
+        logger.addLog(window, "从本地加载用户信息失败: " + e.message);
+        return null;
+    }
+};
+
+/**
+ * 保存用户信息到本地存储
+ * @param {Object} window 悬浮窗对象
+ * @param {Object} userInfo 用户信息对象
+ * @returns {boolean} 是否保存成功
+ */
+UserInfoManager.prototype.saveToLocal = function(window, userInfo) {
+    try {
+        if (!userInfo) {
+            logger.addLog(window, "用户信息为空，无法保存到本地");
+            return false;
+        }
+
+        var success = this.localStorage.saveUserInfo(userInfo);
+        if (success) {
+            logger.addLog(window, "✅ 用户信息已保存到本地");
+        } else {
+            logger.addLog(window, "❌ 用户信息保存到本地失败");
+        }
+        return success;
+    } catch (e) {
+        logger.addLog(window, "保存用户信息到本地出错: " + e.message);
+        return false;
+    }
+};
+
+/**
+ * 清除本地保存的用户信息
+ * @param {Object} window 悬浮窗对象
+ * @returns {boolean} 是否清除成功
+ */
+UserInfoManager.prototype.clearLocalUserInfo = function(window) {
+    try {
+        var success = this.localStorage.clearUserInfo();
+        if (success) {
+            logger.addLog(window, "✅ 本地用户信息已清除");
+        } else {
+            logger.addLog(window, "❌ 清除本地用户信息失败");
+        }
+        return success;
+    } catch (e) {
+        logger.addLog(window, "清除本地用户信息出错: " + e.message);
+        return false;
+    }
+};
+
+/**
+ * 检查本地是否有保存的用户信息
+ * @returns {boolean} 是否有本地用户信息
+ */
+UserInfoManager.prototype.hasLocalUserInfo = function() {
+    return this.localStorage.hasUserInfo();
+};
+
+/**
+ * 设置是否自动保存到本地
+ * @param {boolean} autoSave 是否自动保存
+ */
+UserInfoManager.prototype.setAutoSave = function(autoSave) {
+    this.autoSave = autoSave;
+};
+
+/**
+ * 手动保存当前用户信息到本地
+ * @param {Object} window 悬浮窗对象
+ * @returns {boolean} 是否保存成功
+ */
+UserInfoManager.prototype.manualSaveToLocal = function(window) {
+    if (!this.currentUserData) {
+        logger.addLog(window, "当前没有用户信息，无法保存");
+        return false;
+    }
+
+    return this.saveToLocal(window, this.currentUserData);
+};
+
+/**
+ * 初始化时自动加载本地用户信息
+ * @param {Object} window 悬浮窗对象
+ * @returns {Object|null} 用户信息对象
+ */
+UserInfoManager.prototype.initializeFromLocal = function(window) {
+    try {
+        if (this.hasLocalUserInfo()) {
+            logger.addLog(window, "发现本地保存的用户信息，正在加载...");
+            return this.loadFromLocal(window);
+        } else {
+            logger.addLog(window, "本地没有保存的用户信息");
+            return null;
+        }
+    } catch (e) {
+        logger.addLog(window, "初始化本地用户信息失败: " + e.message);
+        return null;
+    }
 };
 
 module.exports = UserInfoManager;
