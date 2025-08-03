@@ -80,11 +80,23 @@ MainUI.prototype.show = function() {
                                     <text id="minPriceValue" text="0.50" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
                                 </horizontal>
                                 
-                                <horizontal gravity="center_vertical">
+                                <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                                     <text text="最高价:" textSize="12sp" textColor="#666666" w="50dp"/>
                                     <seekbar id="maxPriceSeek" w="*" h="20dp" margin="0 8dp 0 8dp"
                                              max="100" progress="37" progressTint="#FF5722" thumbTint="#FF5722"/>
                                     <text id="maxPriceValue" text="0.80" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
+                                </horizontal>
+
+                                <horizontal gravity="center_vertical" margin="0 0 4dp 0">
+                                    <text text="购买数量:" textSize="12sp" textColor="#666666" w="80dp"/>
+                                    <text id="quantityDisplay" text="1件" textSize="12sp" textColor="#333333" textStyle="bold"/>
+                                </horizontal>
+
+                                <horizontal gravity="center_vertical">
+                                    <text text="数量:" textSize="12sp" textColor="#666666" w="50dp"/>
+                                    <seekbar id="quantitySeek" w="*" h="20dp" margin="0 8dp 0 8dp"
+                                             max="99" progress="0" progressTint="#9C27B0" thumbTint="#9C27B0"/>
+                                    <text id="quantityValue" text="1" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
                                 </horizontal>
                             </vertical>
                         </card>
@@ -130,13 +142,29 @@ MainUI.prototype.show = function() {
                             <vertical padding="16dp">
                                 <text text="快速操作" textSize="18sp" textStyle="bold" textColor="#333333" margin="0 0 12dp 0"/>
                                 
-                                <horizontal gravity="center">
-                                    <button id="startScriptBtn" text="启动脚本" 
-                                            textColor="#ffffff" bg="#FF5722" 
+                                <horizontal gravity="center" margin="0 0 8dp 0">
+                                    <button id="startScriptBtn" text="启动脚本"
+                                            textColor="#ffffff" bg="#FF5722"
                                             w="100dp" h="45dp" margin="8dp" textSize="14sp"/>
-                                    <button id="stopScriptBtn" text="停止脚本" 
-                                            textColor="#ffffff" bg="#9E9E9E" 
+                                    <button id="stopScriptBtn" text="停止脚本"
+                                            textColor="#ffffff" bg="#9E9E9E"
                                             w="100dp" h="45dp" margin="8dp" textSize="14sp" enabled="false"/>
+                                </horizontal>
+
+                                <horizontal gravity="center" margin="0 0 4dp 0">
+                                    <button id="viewPurchasedBtn" text="查看已购买"
+                                            textColor="#ffffff" bg="#9C27B0"
+                                            w="100dp" h="35dp" margin="4dp" textSize="12sp"/>
+                                    <button id="clearPurchasedBtn" text="清除记录"
+                                            textColor="#ffffff" bg="#FF9800"
+                                            w="100dp" h="35dp" margin="4dp" textSize="12sp"/>
+                                </horizontal>
+
+                                <horizontal gravity="center">
+                                    <button id="resetSessionBtn" text="重置会话"
+                                            textColor="#ffffff" bg="#607D8B"
+                                            w="100dp" h="35dp" margin="4dp" textSize="12sp"/>
+                                    <text text="清除位置记录" textSize="10sp" textColor="#666666" gravity="center" layout_weight="1"/>
                                 </horizontal>
                                 
                                 <horizontal gravity="center" margin="8dp 0 0 0">
@@ -212,6 +240,11 @@ MainUI.prototype.initializePriceDisplay = function() {
     var maxPrice = 0.1 + (maxProgress / 100.0) * 1.9;
 
     this.updatePriceDisplay(minPrice, maxPrice);
+
+    // 初始化购买数量显示
+    var quantityProgress = ui.quantitySeek.getProgress();
+    var quantity = quantityProgress + 1; // 0-99对应1-100件
+    this.updateQuantityDisplay(quantity);
 };
 
 /**
@@ -268,6 +301,16 @@ MainUI.prototype.setupEventHandlers = function() {
         }
     });
 
+    // 购买数量滑动条事件
+    ui.quantitySeek.setOnSeekBarChangeListener({
+        onProgressChanged: function(seekBar, progress, fromUser) {
+            if (fromUser) {
+                var quantity = progress + 1; // 0-99对应1-100件
+                self.updateQuantityDisplay(quantity);
+            }
+        }
+    });
+
     // 更新用户信息按钮
     ui.refreshUserBtn.click(function() {
         self.refreshUserInfo();
@@ -291,6 +334,21 @@ MainUI.prototype.setupEventHandlers = function() {
     // 停止脚本按钮
     ui.stopScriptBtn.click(function() {
         self.stopScript();
+    });
+
+    // 查看已购买商品按钮
+    ui.viewPurchasedBtn.click(function() {
+        self.viewPurchasedProducts();
+    });
+
+    // 清除已购买记录按钮
+    ui.clearPurchasedBtn.click(function() {
+        self.clearPurchasedProducts();
+    });
+
+    // 重置会话按钮
+    ui.resetSessionBtn.click(function() {
+        self.resetPurchaseSession();
     });
 
     // 清空日志按钮
@@ -372,8 +430,9 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
     var self = this;
 
     // 设置脚本启动回调
-    this.floatingWindow.setOnStartCallback(function(window, priceRange, mode) {
-        self.addLog("悬浮窗启动脚本: " + mode + "模式, 价格区间: " + priceRange.min.toFixed(2) + "-" + priceRange.max.toFixed(2) + "元");
+    this.floatingWindow.setOnStartCallback(function(window, priceRange, mode, purchaseQuantity) {
+        var quantityText = purchaseQuantity ? ", 数量: " + purchaseQuantity + "件" : "";
+        self.addLog("悬浮窗启动脚本: " + mode + "模式, 价格区间: " + priceRange.min.toFixed(2) + "-" + priceRange.max.toFixed(2) + "元" + quantityText);
 
         // 在新线程中执行脚本
         threads.start(function() {
@@ -391,7 +450,7 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     self.productCollect.execute(window, priceRange);
                 } else {
                     var userName = self.getUserName();
-                    self.productPurchase.execute(window, priceRange, userName);
+                    self.productPurchase.execute(window, priceRange, userName, purchaseQuantity);
                 }
 
             } catch (e) {
@@ -449,8 +508,21 @@ MainUI.prototype.startScript = function() {
     // 获取模式
     var mode = ui.purchaseMode.isChecked() ? 'purchase' : 'collect';
 
+    // 获取购买数量
+    var purchaseQuantity = 1;
+    try {
+        var quantityProgress = ui.quantitySeek.getProgress();
+        purchaseQuantity = quantityProgress + 1; // 0-99对应1-100件
+    } catch (e) {
+        this.addLog("获取购买数量失败，使用默认值1件");
+        purchaseQuantity = 1;
+    }
+
     this.addLog("启动脚本: " + (mode === 'purchase' ? '购买' : '收藏') + "模式");
     this.addLog("价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + "元");
+    if (mode === 'purchase') {
+        this.addLog("购买数量: " + purchaseQuantity + "件");
+    }
 
     // 更新按钮状态
     ui.startScriptBtn.setEnabled(false);
@@ -476,7 +548,7 @@ MainUI.prototype.startScript = function() {
                 self.productCollect.execute(null, priceRange);
             } else {
                 var userName = self.getUserName();
-                self.productPurchase.execute(null, priceRange, userName);
+                self.productPurchase.execute(null, priceRange, userName, purchaseQuantity);
             }
 
         } catch (e) {
@@ -567,6 +639,14 @@ MainUI.prototype.updatePriceDisplay = function(minPrice, maxPrice) {
     ui.priceRangeText.setText(minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + "元");
     ui.minPriceValue.setText(minPrice.toFixed(2));
     ui.maxPriceValue.setText(maxPrice.toFixed(2));
+};
+
+/**
+ * 更新购买数量显示
+ */
+MainUI.prototype.updateQuantityDisplay = function(quantity) {
+    ui.quantityDisplay.setText(quantity + "件");
+    ui.quantityValue.setText(quantity.toString());
 };
 
 /**
@@ -724,6 +804,97 @@ MainUI.prototype.clearLocalUserInfo = function() {
     });
 };
 
+/**
+ * 获取用户名
+ */
+MainUI.prototype.getUserName = function() {
+    return ui.userName.getText().toString() || "未知用户";
+};
 
+/**
+ * 查看已购买商品
+ */
+MainUI.prototype.viewPurchasedProducts = function() {
+    var self = this;
+
+    if (!this.productPurchase) {
+        this.addLog("购买模块未初始化");
+        return;
+    }
+
+    var count = this.productPurchase.getPurchasedProductsCount();
+    if (count === 0) {
+        this.addLog("暂无已购买商品记录");
+        return;
+    }
+
+    this.addLog("=== 已购买商品记录 (" + count + "件) ===");
+
+    // 获取已购买商品列表
+    var purchasedProducts = this.productPurchase.purchasedProducts;
+    for (var i = 0; i < Math.min(purchasedProducts.length, 10); i++) {
+        var product = purchasedProducts[i];
+        this.addLog((i + 1) + ". " + product.text + " - " + product.price + "元 (" + product.date + ")");
+    }
+
+    if (purchasedProducts.length > 10) {
+        this.addLog("... 还有 " + (purchasedProducts.length - 10) + " 条记录");
+    }
+
+    this.addLog("=== 记录查看完毕 ===");
+};
+
+/**
+ * 清除已购买商品记录
+ */
+MainUI.prototype.clearPurchasedProducts = function() {
+    var self = this;
+
+    if (!this.productPurchase) {
+        this.addLog("购买模块未初始化");
+        return;
+    }
+
+    var count = this.productPurchase.getPurchasedProductsCount();
+    if (count === 0) {
+        this.addLog("暂无已购买商品记录需要清除");
+        return;
+    }
+
+    // 确认对话框
+    dialogs.confirm("确认清除", "确定要清除所有已购买商品记录吗？\n当前共有 " + count + " 条记录。")
+        .then(function(confirmed) {
+            if (confirmed) {
+                self.productPurchase.clearPurchasedProducts();
+                self.addLog("✅ 已清除所有已购买商品记录 (" + count + "条)");
+            } else {
+                self.addLog("取消清除操作");
+            }
+        });
+};
+
+/**
+ * 重置购买会话
+ */
+MainUI.prototype.resetPurchaseSession = function() {
+    var self = this;
+
+    if (!this.productPurchase) {
+        this.addLog("购买模块未初始化");
+        return;
+    }
+
+    // 确认对话框
+    dialogs.confirm("重置会话", "确定要重置购买会话吗？\n这将清除所有已点击的商品位置记录，\n但保留已购买商品记录。")
+        .then(function(confirmed) {
+            if (confirmed) {
+                self.productPurchase.resetSession();
+                self.addLog("✅ 购买会话已重置，位置记录已清除");
+                self.addLog("现在可以重新寻找之前点击过的商品位置");
+            } else {
+                self.addLog("取消重置操作");
+            }
+        });
+};
 
 module.exports = MainUI;

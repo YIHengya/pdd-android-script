@@ -53,9 +53,9 @@ FloatingWindow.prototype.createFloatingMenu = function() {
 
     // 设置菜单回调
     var self = this;
-    this.floatingMenu.setOnStartCallback(function(window, targetPrice, mode) {
+    this.floatingMenu.setOnStartCallback(function(window, priceRange, mode, purchaseQuantity) {
         if (self.onStartCallback) {
-            self.onStartCallback(window, targetPrice, mode);
+            self.onStartCallback(window, priceRange, mode, purchaseQuantity);
         }
     });
 
@@ -161,7 +161,7 @@ FloatingWindow.prototype.toggleMenu = function() {
     var ballSize = 40 * density;
     // 菜单尺寸（dp转px）
     var menuWidth = 280 * density;
-    var menuHeight = 350 * density;
+    var menuHeight = 360 * density;
 
     // 计算菜单位置，智能选择显示方向
     var menuX, menuY;

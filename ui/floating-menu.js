@@ -21,7 +21,7 @@ function FloatingMenu() {
  */
 FloatingMenu.prototype.create = function() {
     this.menuWindow = floaty.rawWindow(
-        <frame id="menuFrame" w="280dp" h="320dp" visibility="gone">
+        <frame id="menuFrame" w="280dp" h="360dp" visibility="gone">
             <card cardCornerRadius="10dp" cardElevation="8dp" margin="5dp" cardBackgroundColor="#f8f9fa">
                 <vertical padding="15dp">
                     <horizontal margin="5dp" gravity="center_vertical">
@@ -51,12 +51,26 @@ FloatingMenu.prototype.create = function() {
                         </horizontal>
                     </vertical>
 
-                    <horizontal margin="2dp 5dp 5dp 5dp" gravity="center">
-                        <button id="purchaseBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
-                                w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
-                        <button id="collectBtn" text="收藏模式" textColor="#ffffff" bg="#FF9800"
-                                w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
-                    </horizontal>
+                    <vertical margin="2dp 5dp 5dp 5dp">
+                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                            <text text="购买数量:" textColor="#333333" textSize="12sp" w="60dp"/>
+                            <text id="quantityDisplay" text="1件" textColor="#333333" textSize="12sp" textStyle="bold" margin="5dp 0 0 0"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="数量:" textColor="#666666" textSize="11sp" w="35dp"/>
+                            <seekbar id="quantitySeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
+                                     max="99" progress="0" progressTint="#9C27B0" thumbTint="#9C27B0"/>
+                            <text id="quantityText" text="1" textColor="#666666" textSize="11sp" w="25dp" gravity="center"/>
+                        </horizontal>
+
+                        <horizontal gravity="center">
+                            <button id="purchaseBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
+                                    w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
+                            <button id="collectBtn" text="收藏模式" textColor="#ffffff" bg="#FF9800"
+                                    w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
+                        </horizontal>
+                    </vertical>
 
                     <horizontal margin="5dp" gravity="center">
                         <button id="userInfoBtn" text="更新用户信息" textColor="#ffffff" bg="#4CAF50"
@@ -97,6 +111,8 @@ FloatingMenu.prototype.create = function() {
         self.setupEventHandlers();
         // 初始化价格显示
         self.initializePriceDisplay();
+        // 初始化购买数量显示
+        self.initializeQuantityDisplay();
     }, 100);
 
     this.updateModeButtons();
@@ -122,6 +138,26 @@ FloatingMenu.prototype.initializePriceDisplay = function() {
         this.updatePriceRangeDisplay(minPrice, maxPrice);
     } catch (e) {
         console.error("初始化价格显示失败: " + e.message);
+    }
+};
+
+/**
+ * 初始化购买数量显示
+ */
+FloatingMenu.prototype.initializeQuantityDisplay = function() {
+    if (!this.menuWindow) return;
+
+    try {
+        // 获取当前滑动条的进度值
+        var quantityProgress = this.menuWindow.quantitySeekbar.getProgress();
+
+        // 计算对应的数量（0-99对应1-100件）
+        var quantity = quantityProgress + 1;
+
+        // 更新数量显示
+        this.updateQuantityDisplay(quantity);
+    } catch (e) {
+        console.error("初始化购买数量显示失败: " + e.message);
     }
 };
 
@@ -194,7 +230,16 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             }
         });
 
-
+        // 购买数量滑动条事件处理
+        this.menuWindow.quantitySeekbar.setOnSeekBarChangeListener({
+            onProgressChanged: function(seekBar, progress, fromUser) {
+                if (fromUser) {
+                    // 将进度值转换为数量（0-99对应1-100件）
+                    var quantity = progress + 1;
+                    self.updateQuantityDisplay(quantity);
+                }
+            }
+        });
 
         // 购买模式按钮
         this.menuWindow.purchaseBtn.click(function() {
@@ -245,19 +290,29 @@ FloatingMenu.prototype.startScript = function() {
         return;
     }
 
-    this.addLog("开始执行脚本，价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + " 元，模式: " + this.currentMode);
+    // 获取购买数量
+    var purchaseQuantity = 1;
+    try {
+        var quantityProgress = this.menuWindow.quantitySeekbar.getProgress();
+        purchaseQuantity = quantityProgress + 1; // 0-99对应1-100件
+    } catch (e) {
+        this.addLog("获取购买数量失败，使用默认值1件");
+        purchaseQuantity = 1;
+    }
+
+    this.addLog("开始执行脚本，价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + " 元，模式: " + this.currentMode + "，数量: " + purchaseQuantity + "件");
     this.updateStatus("运行中");
 
     // 使用setTimeout避免在UI线程中执行阻塞操作
     var self = this;
     setTimeout(function() {
         if (self.onStartCallback) {
-            // 传递价格区间对象而不是单一价格
+            // 传递价格区间对象和购买数量
             var priceRange = {
                 min: minPrice,
                 max: maxPrice
             };
-            self.onStartCallback(self.menuWindow, priceRange, self.currentMode);
+            self.onStartCallback(self.menuWindow, priceRange, self.currentMode, purchaseQuantity);
         }
     }, 100);
 };
@@ -329,6 +384,18 @@ FloatingMenu.prototype.updatePriceRangeDisplay = function(minPrice, maxPrice) {
 };
 
 /**
+ * 更新购买数量显示
+ */
+FloatingMenu.prototype.updateQuantityDisplay = function(quantity) {
+    if (this.menuWindow) {
+        ui.run(() => {
+            this.menuWindow.quantityDisplay.setText(quantity + "件");
+            this.menuWindow.quantityText.setText(quantity.toString());
+        });
+    }
+};
+
+/**
  * 更新价格显示（保持向后兼容）
  */
 FloatingMenu.prototype.updatePriceDisplay = function(price) {
@@ -384,7 +451,7 @@ FloatingMenu.prototype.show = function(x, y) {
 
     // 菜单尺寸（dp转px）
     var menuWidth = 280 * density;
-    var menuHeight = 320 * density;
+    var menuHeight = 360 * density;
     var margin = 10 * density;
 
     // 计算菜单位置，确保完全在屏幕内
