@@ -119,11 +119,11 @@ function scrollDownWithRandomCoords(duration) {
     // 生成随机的X坐标（在屏幕中央区域，避免边缘）
     var randomX = Math.floor(screenWidth * 0.3 + Math.random() * screenWidth * 0.4);
 
-    // 起始Y坐标（屏幕下方2/3处）
-    var startY = Math.floor(screenHeight * 0.65 + Math.random() * screenHeight * 0.1);
+    // 起始Y坐标（屏幕下方3/4处）
+    var startY = Math.floor(screenHeight * 0.75 + Math.random() * screenHeight * 0.05);
 
-    // 结束Y坐标（屏幕上方1/3处）
-    var endY = Math.floor(screenHeight * 0.25 + Math.random() * screenHeight * 0.1);
+    // 结束Y坐标（屏幕上方1/4处）
+    var endY = Math.floor(screenHeight * 0.25 + Math.random() * screenHeight * 0.05);
 
     try {
         // 执行向下滑动（从下往上滑动实现向下滚动）

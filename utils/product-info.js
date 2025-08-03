@@ -229,21 +229,6 @@ ProductInfoExtractor.prototype.findShopNameByEnterMallId = function(window) {
     }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /**
  * 在容器中查找真正的店铺名称
  * @param {Object} window 悬浮窗对象

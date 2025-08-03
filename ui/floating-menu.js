@@ -32,7 +32,7 @@ FloatingMenu.prototype.create = function() {
                     <vertical margin="5dp 5dp 2dp 5dp">
                         <horizontal gravity="center_vertical">
                             <text text="价格区间:" textColor="#333333" textSize="14sp"/>
-                            <text id="priceRangeDisplay" text="0.50-1.00元" textColor="#333333" textSize="14sp"
+                            <text id="priceRangeDisplay" text="0.50-0.80元" textColor="#333333" textSize="14sp"
                                   margin="8dp 0 0 0" textStyle="bold"/>
                         </horizontal>
 
@@ -46,8 +46,8 @@ FloatingMenu.prototype.create = function() {
                         <horizontal gravity="center_vertical">
                             <text text="最高:" textColor="#666666" textSize="12sp" w="35dp"/>
                             <seekbar id="maxPriceSeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
-                                     max="100" progress="47" progressTint="#FF5722" thumbTint="#FF5722"/>
-                            <text id="maxPriceText" text="1.00" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
+                                     max="100" progress="37" progressTint="#FF5722" thumbTint="#FF5722"/>
+                            <text id="maxPriceText" text="0.80" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
                         </horizontal>
                     </vertical>
 
