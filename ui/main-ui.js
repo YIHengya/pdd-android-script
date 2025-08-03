@@ -51,11 +51,7 @@ MainUI.prototype.show = function() {
                                 <text text="启用后将显示悬浮球，可在任意界面使用自动化功能" 
                                       textSize="12sp" textColor="#888888" margin="0 0 8dp 0"/>
                                       
-                                <horizontal gravity="center" margin="8dp 0 0 0">
-                                    <button id="testFloatingBtn" text="测试悬浮窗" 
-                                            textColor="#ffffff" bg="#2196F3" 
-                                            w="120dp" h="40dp" margin="4dp" textSize="14sp"/>
-                                </horizontal>
+
                             </vertical>
                         </card>
 
@@ -144,17 +140,11 @@ MainUI.prototype.show = function() {
                                 </horizontal>
                                 
                                 <horizontal gravity="center" margin="8dp 0 0 0">
-                                    <button id="settingsBtn" text="设置"
-                                            textColor="#ffffff" bg="#9C27B0"
-                                            w="70dp" h="40dp" margin="2dp" textSize="12sp"/>
                                     <button id="helpBtn" text="帮助"
                                             textColor="#ffffff" bg="#607D8B"
                                             w="70dp" h="40dp" margin="2dp" textSize="12sp"/>
                                     <button id="aboutBtn" text="关于"
                                             textColor="#ffffff" bg="#795548"
-                                            w="70dp" h="40dp" margin="2dp" textSize="12sp"/>
-                                    <button id="exitBtn" text="退出"
-                                            textColor="#ffffff" bg="#F44336"
                                             w="70dp" h="40dp" margin="2dp" textSize="12sp"/>
                                 </horizontal>
                             </vertical>
@@ -239,16 +229,7 @@ MainUI.prototype.setupEventHandlers = function() {
         }
     });
 
-    // 测试悬浮窗按钮
-    ui.testFloatingBtn.click(function() {
-        if (self.isFloatingWindowActive) {
-            self.addLog("悬浮窗已在运行中");
-        } else {
-            self.addLog("正在启动测试悬浮窗...");
-            self.startFloatingWindow();
-            ui.floatingSwitch.setChecked(true);
-        }
-    });
+
 
     // 价格滑动条事件
     ui.minPriceSeek.setOnSeekBarChangeListener({
@@ -317,10 +298,7 @@ MainUI.prototype.setupEventHandlers = function() {
         ui.logText.setText("日志已清空");
     });
 
-    // 设置按钮
-    ui.settingsBtn.click(function() {
-        self.addLog("设置功能开发中...");
-    });
+
 
     // 帮助按钮
     ui.helpBtn.click(function() {
@@ -332,10 +310,7 @@ MainUI.prototype.setupEventHandlers = function() {
         self.showAbout();
     });
 
-    // 退出按钮
-    ui.exitBtn.click(function() {
-        self.exitApp();
-    });
+
 };
 
 /**
@@ -749,32 +724,6 @@ MainUI.prototype.clearLocalUserInfo = function() {
     });
 };
 
-/**
- * 退出应用
- */
-MainUI.prototype.exitApp = function() {
-    var self = this;
 
-    dialogs.confirm("确认退出", "确定要退出应用吗？").then(function(confirmed) {
-        if (confirmed) {
-            // 先关闭悬浮窗
-            if (self.floatingWindow) {
-                self.floatingWindow.close();
-            }
-
-            // 停止脚本线程
-            if (self.scriptThread) {
-                self.scriptThread.interrupt();
-            }
-
-            self.addLog("应用即将退出...");
-
-            // 延迟退出，让用户看到日志
-            setTimeout(function() {
-                exit();
-            }, 1000);
-        }
-    });
-};
 
 module.exports = MainUI;
