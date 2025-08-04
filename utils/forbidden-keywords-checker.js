@@ -19,7 +19,9 @@ function ForbiddenKeywordsChecker() {
         "按需定制",
         "客制化",
         "个人定制",
-        "DIY定制"
+        "DIY定制",
+        "补差价",
+        "偏远地区"
     ];
 }
 
@@ -131,7 +133,9 @@ ForbiddenKeywordsChecker.prototype.resetToDefault = function() {
         "按需定制",
         "客制化",
         "个人定制",
-        "DIY定制"
+        "DIY定制",
+        "补差价",
+        "偏远地区"
     ];
 };
 

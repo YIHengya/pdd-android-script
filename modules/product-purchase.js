@@ -430,35 +430,44 @@ ProductPurchase.prototype.handlePayment = function(window) {
 
 
 /**
- * 等待支付宝页面出现后返回主页
+ * 等待支付宝页面或待支付状态出现后返回主页
  * @param {Object} window 悬浮窗对象
  */
 ProductPurchase.prototype.waitForAlipayAndReturn = function(window) {
-    logger.addLog(window, "等待支付宝页面出现...");
+    logger.addLog(window, "等待支付宝页面或待支付状态出现...");
 
     var maxWaitTime = 30000; // 最大等待30秒
     var startTime = Date.now();
-    var alipayFound = false;
+    var orderCompleted = false;
 
     while (Date.now() - startTime < maxWaitTime) {
         // 检查是否出现支付宝相关元素
         var alipayElement = className("android.widget.TextView").text("支付宝").findOne(1000);
 
+        // 检查是否出现待支付按钮（说明订单已创建）
+        var pendingPaymentElement = className("android.widget.TextView").textContains("待支付").findOne(1000);
+
         if (alipayElement) {
-            logger.addLog(window, "检测到支付宝页面，准备返回主页");
-            alipayFound = true;
+            logger.addLog(window, "检测到支付宝页面，订单已创建，准备返回主页");
+            orderCompleted = true;
+            break;
+        }
+
+        if (pendingPaymentElement) {
+            logger.addLog(window, "检测到待支付状态，订单已创建，准备返回主页");
+            orderCompleted = true;
             break;
         }
 
         sleep(500); // 每500ms检查一次
     }
 
-    if (alipayFound) {
-        logger.addLog(window, "支付宝页面已出现，开始返回主页");
+    if (orderCompleted) {
+        logger.addLog(window, "订单已成功创建，开始返回主页");
         sleep(1000); // 稍等一下确保页面稳定
         this.navigationHelper.goToHomePage(window);
     } else {
-        logger.addLog(window, "未检测到支付宝页面，直接返回主页");
+        logger.addLog(window, "未检测到支付页面或待支付状态，直接返回主页");
         this.navigationHelper.goToHomePage(window);
     }
 };
