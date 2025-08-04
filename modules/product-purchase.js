@@ -7,6 +7,8 @@ const logger = require('../utils/logger.js');
 const ApiClient = require('../utils/api-client.js');
 const ProductInfoExtractor = require('../utils/product-info.js');
 const NavigationHelper = require('../utils/navigation.js');
+const ForbiddenKeywordsChecker = require('../utils/forbidden-keywords-checker.js');
+const ForbiddenKeywordsChecker = require('../utils/forbidden-keywords-checker.js');
 
 /**
  * 商品购买功能构造函数
@@ -16,6 +18,7 @@ function ProductPurchase() {
     this.apiClient = new ApiClient();
     this.productInfoExtractor = new ProductInfoExtractor();
     this.navigationHelper = new NavigationHelper();
+    this.keywordsChecker = new ForbiddenKeywordsChecker();
     this.purchasedProducts = []; // 已购买商品列表
     this.clickedPositions = []; // 已点击过的商品位置
     this.currentScrollPosition = 0; // 当前滚动位置
@@ -347,9 +350,17 @@ ProductPurchase.prototype.purchaseProduct = function(window) {
         var buyBtn = text(this.config.buyButtons[i]).findOne(2000);
         if (buyBtn) {
             logger.addLog(window, "找到购买按钮: " + this.config.buyButtons[i]);
-            
+
             if (safeClick(buyBtn)) {
                 sleep(this.config.waitTimes.pageLoad);
+
+                // 检查弹出的规格选择页面是否包含禁止关键词
+                if (this.keywordsChecker.containsForbiddenKeywords(window, "规格选择页面", 1500)) {
+                    logger.addLog(window, "❌ 规格选择页面包含禁止关键词，取消购买");
+                    back(); // 返回上一页
+                    return false;
+                }
+
                 return this.handlePayment(window);
             }
         }
@@ -361,7 +372,14 @@ ProductPurchase.prototype.purchaseProduct = function(window) {
     var screenHeight = device.height;
     click(screenWidth - 100, screenHeight - 150);
     sleep(this.config.waitTimes.pageLoad);
-    
+
+    // 检查弹出的规格选择页面是否包含禁止关键词
+    if (this.keywordsChecker.containsForbiddenKeywords(window, "规格选择页面", 1500)) {
+        logger.addLog(window, "❌ 规格选择页面包含禁止关键词，取消购买");
+        back(); // 返回上一页
+        return false;
+    }
+
     return this.handlePayment(window);
 };
 

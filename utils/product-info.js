@@ -4,12 +4,14 @@
 const { PDD_CONFIG } = require('../config/app-config.js');
 const { parsePrice, safeClick, scrollWithRandomCoords } = require('./common.js');
 const logger = require('./logger.js');
+const ForbiddenKeywordsChecker = require('./forbidden-keywords-checker.js');
 
 /**
  * 商品信息获取器构造函数
  */
 function ProductInfoExtractor() {
     this.config = PDD_CONFIG;
+    this.keywordsChecker = new ForbiddenKeywordsChecker();
 }
 
 /**
@@ -21,10 +23,16 @@ function ProductInfoExtractor() {
 ProductInfoExtractor.prototype.extractProductInfo = function(window, userName) {
     try {
         logger.addLog(window, "开始提取商品信息...");
-        
+
         // 等待页面加载
         sleep(this.config.waitTimes.pageLoad);
-        
+
+        // 检查页面是否包含禁止购买的关键词
+        if (this.keywordsChecker.containsForbiddenKeywords(window, "商品详情页")) {
+            logger.addLog(window, "❌ 检测到禁止购买的关键词，跳过此商品");
+            return null;
+        }
+
         var productInfo = {
             user_name: userName,
             shop_name: this.getShopName(window),
@@ -32,30 +40,30 @@ ProductInfoExtractor.prototype.extractProductInfo = function(window, userName) {
             product_price: this.getProductPrice(window),
             product_sku: this.getProductSku(window)
         };
-        
+
         // 验证必要信息是否获取成功
         if (!productInfo.shop_name) {
             logger.addLog(window, "❌ 无法获取店铺名称");
             return null;
         }
-        
+
         if (!productInfo.product_url) {
             logger.addLog(window, "❌ 无法获取商品链接");
             return null;
         }
-        
+
         if (!productInfo.product_price || productInfo.product_price <= 0) {
             logger.addLog(window, "❌ 无法获取有效的商品价格");
             return null;
         }
-        
+
         logger.addLog(window, "✅ 商品信息提取成功");
         logger.addLog(window, "店铺: " + productInfo.shop_name);
         logger.addLog(window, "价格: " + productInfo.product_price + " 元");
         logger.addLog(window, "规格: " + (productInfo.product_sku || "默认规格"));
-        
+
         return productInfo;
-        
+
     } catch (e) {
         logger.addLog(window, "提取商品信息失败: " + e.message);
         return null;
@@ -658,7 +666,7 @@ ProductInfoExtractor.prototype.getProductSku = function(window) {
             textContains("款式"),
             className("android.widget.TextView").textMatches(/.*【.*】.*/)
         ];
-        
+
         for (var i = 0; i < skuSelectors.length; i++) {
             var skuElement = skuSelectors[i].findOne(1000);
             if (skuElement) {
@@ -669,10 +677,10 @@ ProductInfoExtractor.prototype.getProductSku = function(window) {
                 }
             }
         }
-        
+
         logger.addLog(window, "未找到具体规格，使用默认规格");
         return "默认规格";
-        
+
     } catch (e) {
         logger.addLog(window, "获取商品规格失败: " + e.message);
         return "默认规格";
