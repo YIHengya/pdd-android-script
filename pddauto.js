@@ -51,6 +51,12 @@ window.scriptSwitch.setOnCheckedChangeListener(function(view, checked) {
             return;
         }
 
+        // 导入全局停止管理器
+        const { GlobalStopManager } = require('./utils/common.js');
+
+        // 开始脚本
+        GlobalStopManager.startScript();
+
         addLog("开始执行脚本");
         isRunning = true;
 
@@ -61,6 +67,9 @@ window.scriptSwitch.setOnCheckedChangeListener(function(view, checked) {
             } catch (e) {
                 addLog("脚本执行出错: " + e.message);
             } finally {
+                // 结束脚本计数
+                GlobalStopManager.endScript();
+
                 isRunning = false;
                 // 脚本结束时自动关闭开关
                 ui.run(function() {
@@ -87,6 +96,9 @@ window.closeBtn.click(function() {
 });
 
 function executePDDScript() {
+    // 导入全局停止管理器
+    const { GlobalStopManager } = require('./utils/common.js');
+
     addLog("正在打开拼多多链接...");
 
     // 打开浏览器访问拼多多链接
@@ -95,6 +107,12 @@ function executePDDScript() {
     // 等待页面加载
     addLog("等待页面加载(3秒)...");
     sleep(3000);
+
+    // 检查是否需要停止
+    if (GlobalStopManager.isStopRequested()) {
+        addLog("🛑 检测到停止信号，终止脚本");
+        return;
+    }
 
     // 检查当前应用是否已经是拼多多
     var currentApp = currentPackage();
@@ -121,7 +139,10 @@ function executePDDScript() {
 
         var buttonFound = false;
         for (let i = 0; i < openAppButtons.length; i++) {
-            if (!isRunning) return;
+            if (!isRunning || GlobalStopManager.isStopRequested()) {
+                addLog("🛑 检测到停止信号，终止按钮搜索");
+                return;
+            }
 
             var btn = text(openAppButtons[i]).findOne(1500);
             if (btn) {
@@ -187,7 +208,10 @@ function executePDDScript() {
         ];
 
         for (let i = 0; i < collectTextButtons.length; i++) {
-            if (!isRunning) return;
+            if (!isRunning || GlobalStopManager.isStopRequested()) {
+                addLog("🛑 检测到停止信号，终止收藏按钮搜索");
+                return;
+            }
 
             var collectBtn = text(collectTextButtons[i]).findOne(1000);
             if (collectBtn) {

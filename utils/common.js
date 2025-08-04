@@ -14,6 +14,9 @@ var GlobalStopManager = {
     // 所有活跃的定时器
     activeIntervals: [],
 
+    // 当前运行的脚本数量
+    runningScripts: 0,
+
     /**
      * 设置停止标志
      */
@@ -28,6 +31,35 @@ var GlobalStopManager = {
     reset: function() {
         this.shouldStop = false;
         console.log("GlobalStopManager: 重置全局停止标志");
+    },
+
+    /**
+     * 智能重置 - 只有在没有运行脚本时才重置
+     */
+    smartReset: function() {
+        if (this.runningScripts <= 0) {
+            this.shouldStop = false;
+            console.log("GlobalStopManager: 智能重置全局停止标志");
+        } else {
+            console.log("GlobalStopManager: 有脚本正在运行，跳过重置");
+        }
+    },
+
+    /**
+     * 开始脚本 - 增加运行计数并重置停止标志
+     */
+    startScript: function() {
+        this.runningScripts++;
+        this.shouldStop = false;
+        console.log("GlobalStopManager: 开始脚本，当前运行数量: " + this.runningScripts);
+    },
+
+    /**
+     * 结束脚本 - 减少运行计数
+     */
+    endScript: function() {
+        this.runningScripts = Math.max(0, this.runningScripts - 1);
+        console.log("GlobalStopManager: 结束脚本，当前运行数量: " + this.runningScripts);
     },
 
     /**
@@ -109,6 +141,9 @@ var GlobalStopManager = {
         // 清空定时器列表
         this.activeIntervals = [];
 
+        // 重置运行脚本计数
+        this.runningScripts = 0;
+
         console.log("GlobalStopManager: 所有线程和定时器已停止");
 
         // 调用AutoJS的线程停止方法
@@ -118,6 +153,26 @@ var GlobalStopManager = {
         } catch (e) {
             console.error("GlobalStopManager: 调用 threads.shutDownAll() 失败: " + e.message);
         }
+
+        // 延迟重置停止标志，给脚本一些时间完全停止
+        var self = this;
+        setTimeout(function() {
+            if (self.runningScripts <= 0) {
+                self.shouldStop = false;
+                console.log("GlobalStopManager: 延迟重置停止标志完成");
+            }
+        }, 2000);
+    },
+
+    /**
+     * 强制重置所有状态 - 用于解决停止标志持久化问题
+     */
+    forceReset: function() {
+        this.shouldStop = false;
+        this.runningScripts = 0;
+        this.activeThreads = [];
+        this.activeIntervals = [];
+        console.log("GlobalStopManager: 强制重置所有状态完成");
     }
 };
 

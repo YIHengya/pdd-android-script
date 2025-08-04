@@ -280,6 +280,12 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             // 使用全局停止管理器强制停止所有线程
             GlobalStopManager.shutdownAll();
 
+            // 延迟强制重置，确保脚本完全停止
+            setTimeout(function() {
+                GlobalStopManager.forceReset();
+                self.addLog("🔄 状态已重置，可以重新启动");
+            }, 3000);
+
             self.addLog("🛑 所有脚本已紧急停止");
             self.updateStatus("紧急停止");
 
@@ -302,6 +308,9 @@ FloatingMenu.prototype.setupEventHandlers = function() {
  * 启动脚本
  */
 FloatingMenu.prototype.startScript = function() {
+    // 智能重置全局停止标志
+    GlobalStopManager.startScript();
+
     // 从滑动条获取价格区间
     var minProgress = this.menuWindow.minPriceSeekbar.getProgress();
     var maxProgress = this.menuWindow.maxPriceSeekbar.getProgress();
@@ -311,6 +320,7 @@ FloatingMenu.prototype.startScript = function() {
     if (isNaN(minPrice) || isNaN(maxPrice) || minPrice <= 0 || maxPrice <= 0 || minPrice >= maxPrice) {
         this.addLog("请设置有效的价格区间");
         this.menuWindow.scriptSwitch.setChecked(false);
+        GlobalStopManager.endScript(); // 启动失败，减少计数
         return;
     }
 

@@ -60,9 +60,6 @@ MainApp.prototype.setupCallbacks = function() {
 
     // 设置脚本启动回调
     this.floatingWindow.setOnStartCallback(function(window, priceRange, mode, purchaseQuantity) {
-        // 重置全局停止标志
-        GlobalStopManager.reset();
-
         // 在新线程中执行脚本，避免阻塞UI线程
         self.scriptThread = threads.start(function() {
             // 注册线程到全局停止管理器
@@ -100,6 +97,9 @@ MainApp.prototype.setupCallbacks = function() {
                     }
                 });
             } finally {
+                // 结束脚本计数
+                GlobalStopManager.endScript();
+
                 // 从全局停止管理器注销线程
                 GlobalStopManager.unregisterThread(self.scriptThread);
 
