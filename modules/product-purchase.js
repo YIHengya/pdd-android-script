@@ -2,7 +2,7 @@
 // 整合拼多多自动购买的所有功能
 
 const { PDD_CONFIG } = require('../config/app-config.js');
-const { parsePrice, safeClick, scrollDownWithRandomCoords, GlobalStopManager } = require('../utils/common.js');
+const { parsePrice, safeClick, scrollWithRandomCoords, GlobalStopManager } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
 const ApiClient = require('../utils/api-client.js');
 const ProductInfoExtractor = require('../utils/product-info.js');
@@ -99,8 +99,33 @@ ProductPurchase.prototype.execute = function(window, priceRange, userName, purch
 
                 logger.addLog(window, "✅ 可以下单，开始购买流程");
 
-                // 购买商品
-                if (this.purchaseProduct(window)) {
+                // 购买商品 - 增加重试机制
+                var purchaseSuccess = false;
+                var maxPurchaseRetries = 2;
+
+                for (var retryCount = 0; retryCount < maxPurchaseRetries && !purchaseSuccess; retryCount++) {
+                    if (retryCount > 0) {
+                        logger.addLog(window, "第 " + (retryCount + 1) + " 次尝试购买商品...");
+                        sleep(2000); // 重试前等待
+                    }
+
+                    purchaseSuccess = this.purchaseProduct(window);
+
+                    if (!purchaseSuccess && retryCount < maxPurchaseRetries - 1) {
+                        logger.addLog(window, "购买失败，准备重试...");
+                        // 返回主页重新进入商品页面
+                        this.navigationHelper.goToHomePage(window);
+                        sleep(1000);
+                        // 重新寻找并点击相同商品
+                        var retryProduct = this.findProducts(window, priceRange, false);
+                        if (!retryProduct || retryProduct.text !== foundProduct.text) {
+                            logger.addLog(window, "重新寻找商品失败，跳过重试");
+                            break;
+                        }
+                    }
+                }
+
+                if (purchaseSuccess) {
                     logger.addLog(window, "第 " + (i + 1) + " 件商品购买流程已启动");
                     successCount++;
 
@@ -118,16 +143,39 @@ ProductPurchase.prototype.execute = function(window, priceRange, userName, purch
                         logger.addLog(window, "准备寻找下一件不同的商品...");
                     }
                 } else {
-                    logger.addLog(window, "第 " + (i + 1) + " 件商品购买流程失败");
+                    logger.addLog(window, "第 " + (i + 1) + " 件商品购买流程失败，已尝试 " + maxPurchaseRetries + " 次");
                     this.navigationHelper.goToHomePage(window);
                 }
             } else {
-                logger.addLog(window, "未找到符合条件的新商品，跳过第 " + (i + 1) + " 件");
-                // 如果找不到商品，强制滚动更多寻找新商品
-                logger.addLog(window, "尝试滚动更多寻找新商品...");
-                for (var k = 0; k < 5; k++) {
-                    scrollDownWithRandomCoords();
-                    sleep(1000);
+                logger.addLog(window, "未找到符合条件的新商品，尝试多种策略寻找...");
+
+                // 策略1: 清除部分位置记录，允许重新点击一些商品
+                if (this.clickedPositions.length > 20) {
+                    var removeCount = Math.floor(this.clickedPositions.length / 3);
+                    this.clickedPositions.splice(0, removeCount);
+                    logger.addLog(window, "清除了 " + removeCount + " 个旧的点击记录，允许重新尝试");
+                }
+
+                // 策略2: 回到页面顶部重新开始
+                logger.addLog(window, "尝试回到页面顶部重新搜索...");
+                for (var k = 0; k < 10; k++) {
+                    scrollWithRandomCoords('up');
+                    sleep(500);
+                }
+                this.currentScrollPosition = 0;
+
+                // 策略3: 强制滚动寻找新商品
+                logger.addLog(window, "从顶部开始滚动寻找新商品...");
+                for (var k = 0; k < 8; k++) {
+                    scrollWithRandomCoords('down');
+                    sleep(1500);
+                }
+
+                // 策略4: 如果还是找不到，尝试刷新页面
+                if (i > 5) { // 只有在购买了5件以上才尝试刷新
+                    logger.addLog(window, "尝试刷新页面获取新商品...");
+                    this.navigationHelper.goToHomePage(window);
+                    sleep(2000);
                 }
             }
         }
@@ -170,7 +218,7 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
     if (forceScroll) {
         logger.addLog(window, "强制滚动寻找新商品...");
         for (var k = 0; k < 3; k++) {
-            scrollDownWithRandomCoords();
+            scrollWithRandomCoords('down');
             sleep(this.config.waitTimes.scroll);
         }
         this.currentScrollPosition += 3;
@@ -186,6 +234,7 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
         logger.addLog(window, "第 " + (scrollCount + 1) + " 次搜索商品...");
 
         var allTexts = textMatches(/.*/).find();
+        var foundNewProduct = false;
 
         for (var i = 0; i < allTexts.length; i++) {
             // 检查是否需要停止
@@ -222,6 +271,7 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
                         this.addClickedPosition(elementPosition);
 
                         if (this.clickProduct(window, element)) {
+                            foundNewProduct = true;
                             return {
                                 text: text,
                                 price: price
@@ -233,8 +283,29 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
             }
         }
 
+        // 如果本次搜索没有找到新商品，采用不同的滚动策略
+        if (!foundNewProduct) {
+            // 每5次失败尝试清除一些位置记录
+            if (scrollCount > 0 && scrollCount % 5 === 0 && this.clickedPositions.length > 10) {
+                var removeCount = Math.floor(this.clickedPositions.length / 4);
+                this.clickedPositions.splice(0, removeCount);
+                logger.addLog(window, "清除了 " + removeCount + " 个旧的点击记录");
+            }
+
+            // 每10次失败尝试回到顶部
+            if (scrollCount > 0 && scrollCount % 10 === 0) {
+                logger.addLog(window, "尝试回到页面顶部重新搜索...");
+                for (var k = 0; k < 8; k++) {
+                    scrollWithRandomCoords('up');
+                    sleep(300);
+                }
+                this.currentScrollPosition = 0;
+                logger.addLog(window, "已回到页面顶部，继续搜索...");
+            }
+        }
+
         logger.addLog(window, "向下滚动寻找更多商品...");
-        scrollDownWithRandomCoords();
+        scrollWithRandomCoords('down');
         sleep(this.config.waitTimes.scroll);
         scrollCount++;
         this.currentScrollPosition++;
@@ -505,6 +576,15 @@ ProductPurchase.prototype.clearClickedPositions = function() {
  */
 ProductPurchase.prototype.resetSession = function() {
     this.clearClickedPositions();
+
+    // 如果已购买商品过多，清除一些旧记录以避免过度限制
+    if (this.purchasedProducts.length > 50) {
+        var removeCount = Math.floor(this.purchasedProducts.length / 4);
+        this.purchasedProducts.splice(0, removeCount);
+        this.savePurchasedProducts();
+        console.log("清除了 " + removeCount + " 个旧的购买记录，避免过度限制");
+    }
+
     console.log("购买会话已重置");
 };
 

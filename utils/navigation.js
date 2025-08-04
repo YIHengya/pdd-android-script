@@ -508,29 +508,81 @@ NavigationHelper.prototype.scrollToTop = function(window, maxScrolls) {
 NavigationHelper.prototype.isAtHomePage = function(window) {
     logger.addLog(window, "检查是否在主页...");
 
-    // 查找"推荐"标识的函数
+    // 检查主页特征的函数
     var checkHomeIndicators = function() {
-        var homeIndicators = [
-            text("推荐"),
-            textContains("推荐")
+        var foundIndicators = 0;
+        var totalChecks = 0;
+
+        // 1. 检查底部导航栏的"首页"按钮（最重要的标识）
+        totalChecks++;
+        var homeNavButtons = [
+            text("首页"),
+            textContains("首页")
         ];
 
-        for (var i = 0; i < homeIndicators.length; i++) {
-            if (homeIndicators[i].exists()) {
-                return true;
+        for (var i = 0; i < homeNavButtons.length; i++) {
+            var homeNavs = homeNavButtons[i].find();
+            for (var j = 0; j < homeNavs.length; j++) {
+                var bounds = homeNavs[j].bounds();
+                // 检查是否在屏幕底部（底部导航栏区域）
+                if (bounds.bottom > device.height * 0.8) {
+                    logger.addLog(window, "✅ 找到底部导航栏的首页按钮");
+                    foundIndicators++;
+                    break;
+                }
+            }
+            if (foundIndicators > 0) break;
+        }
+
+        // 2. 检查"推荐"标识（但需要在页面上方区域）
+        totalChecks++;
+        var recommendElements = text("推荐").find();
+        for (var i = 0; i < recommendElements.length; i++) {
+            var bounds = recommendElements[i].bounds();
+            // 推荐标识应该在页面上半部分，不在底部导航区域
+            if (bounds.top < device.height * 0.7 && bounds.bottom < device.height * 0.8) {
+                logger.addLog(window, "✅ 找到推荐标识（在合适位置）");
+                foundIndicators++;
+                break;
             }
         }
-        return false;
+
+        // 3. 检查搜索框（主页特有）
+        totalChecks++;
+        var searchIndicators = [
+            textContains("搜索"),
+            desc("搜索"),
+            descContains("搜索")
+        ];
+
+        for (var i = 0; i < searchIndicators.length; i++) {
+            var searchElements = searchIndicators[i].find();
+            for (var j = 0; j < searchElements.length; j++) {
+                var bounds = searchElements[j].bounds();
+                // 搜索框通常在页面顶部区域
+                if (bounds.top < device.height * 0.3) {
+                    logger.addLog(window, "✅ 找到搜索框");
+                    foundIndicators++;
+                    break;
+                }
+            }
+            if (foundIndicators >= 2) break;
+        }
+
+        logger.addLog(window, "主页特征检查结果: " + foundIndicators + "/" + totalChecks);
+
+        // 至少需要找到2个特征才认为是主页（底部首页按钮 + 其他特征）
+        return foundIndicators >= 2;
     };
 
     // 先检查当前页面是否已经在主页
     if (checkHomeIndicators()) {
-        logger.addLog(window, "✅ 确认在主页 - 找到推荐标识");
+        logger.addLog(window, "✅ 确认在主页 - 找到足够的主页特征");
         return true;
     }
 
     // 如果不在主页，适度向上滚动并检测（减少滚动次数避免被识别为机器人）
-    var maxScrolls = 2; // 减少到3次，更自然
+    var maxScrolls = 2;
     for (var i = 0; i < maxScrolls; i++) {
         try {
             logger.addLog(window, "向上滚动第 " + (i + 1) + " 次...");
@@ -540,7 +592,7 @@ NavigationHelper.prototype.isAtHomePage = function(window) {
 
             // 每次滚动后立即检测主页标识
             if (checkHomeIndicators()) {
-                logger.addLog(window, "✅ 确认在主页 - 找到推荐标识（滚动第 " + (i + 1) + " 次后）");
+                logger.addLog(window, "✅ 确认在主页 - 找到足够的主页特征（滚动第 " + (i + 1) + " 次后）");
                 return true;
             }
         } catch (e) {
@@ -549,7 +601,7 @@ NavigationHelper.prototype.isAtHomePage = function(window) {
         }
     }
 
-    logger.addLog(window, "❌ 不在主页 - 滚动完成后仍未找到推荐标识");
+    logger.addLog(window, "❌ 不在主页 - 滚动完成后仍未找到足够的主页特征");
     return false;
 };
 

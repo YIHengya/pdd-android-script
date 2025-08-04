@@ -281,10 +281,12 @@ function findAnyElement(selectors) {
 }
 
 /**
- * 向下滚动（使用随机坐标）
+ * 滚动页面（使用随机坐标）
+ * @param {string} direction 滚动方向，'down'向下滚动，'up'向上滚动，默认'down'
  * @param {number} duration 滑动持续时间（毫秒），默认300
  */
-function scrollDownWithRandomCoords(duration) {
+function scrollWithRandomCoords(direction, duration) {
+    direction = direction || 'down';
     duration = duration || 300;
 
     // 获取屏幕尺寸
@@ -294,19 +296,27 @@ function scrollDownWithRandomCoords(duration) {
     // 生成随机的X坐标（在屏幕中央区域，避免边缘）
     var randomX = Math.floor(screenWidth * 0.3 + Math.random() * screenWidth * 0.4);
 
-    // 起始Y坐标（屏幕下方3/4处）
-    var startY = Math.floor(screenHeight * 0.75 + Math.random() * screenHeight * 0.05);
+    var startY, endY;
 
-    // 结束Y坐标（屏幕上方1/4处）
-    var endY = Math.floor(screenHeight * 0.25 + Math.random() * screenHeight * 0.05);
+    if (direction === 'up') {
+        // 向上滚动：起始Y坐标（屏幕上方1/4处），结束Y坐标（屏幕下方3/4处）
+        startY = Math.floor(screenHeight * 0.25 + Math.random() * screenHeight * 0.05);
+        endY = Math.floor(screenHeight * 0.75 + Math.random() * screenHeight * 0.05);
+    } else {
+        // 向下滚动：起始Y坐标（屏幕下方3/4处），结束Y坐标（屏幕上方1/4处）
+        startY = Math.floor(screenHeight * 0.75 + Math.random() * screenHeight * 0.05);
+        endY = Math.floor(screenHeight * 0.25 + Math.random() * screenHeight * 0.05);
+    }
 
     try {
-        // 执行向下滑动（从下往上滑动实现向下滚动）
+        // 执行滑动
         swipe(randomX, startY, randomX, endY, duration);
     } catch (e) {
-        console.error("向下滚动失败: " + e.message);
+        console.error(direction === 'up' ? "向上滚动失败: " : "向下滚动失败: " + e.message);
     }
 }
+
+
 
 module.exports = {
     GlobalStopManager,
@@ -316,5 +326,5 @@ module.exports = {
     safeClick,
     isInApp,
     findAnyElement,
-    scrollDownWithRandomCoords
+    scrollWithRandomCoords
 };

@@ -2,7 +2,7 @@
 // 负责自动收藏符合条件的商品
 
 const { PDD_CONFIG } = require('../config/app-config.js');
-const { parsePrice, safeClick, scrollDownWithRandomCoords, GlobalStopManager } = require('../utils/common.js');
+const { parsePrice, safeClick, scrollWithRandomCoords, GlobalStopManager } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
 
 /**
@@ -154,7 +154,7 @@ ProductCollect.prototype.batchCollectProducts = function(window, priceRange, max
         }
 
         // 向下滚动寻找更多商品
-        scrollDownWithRandomCoords();
+        scrollWithRandomCoords('down');
         sleep(this.config.waitTimes.scroll);
         scrollCount++;
     }
