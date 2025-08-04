@@ -8,7 +8,6 @@ const ApiClient = require('../utils/api-client.js');
 const ProductInfoExtractor = require('../utils/product-info.js');
 const NavigationHelper = require('../utils/navigation.js');
 const ForbiddenKeywordsChecker = require('../utils/forbidden-keywords-checker.js');
-const ForbiddenKeywordsChecker = require('../utils/forbidden-keywords-checker.js');
 
 /**
  * 商品购买功能构造函数
