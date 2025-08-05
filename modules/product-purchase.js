@@ -556,10 +556,34 @@ ProductPurchase.prototype.handlePayment = function(window) {
 
     sleep(this.config.waitTimes.elementFind);
 
-    // 寻找支付按钮
+    // 优先策略：通过"更换支付方式"定位支付按钮
+    var changePaymentBtn = textContains("更换支付方式").findOne(1000);
+    if (changePaymentBtn) {
+        logger.addLog(window, "找到'更换支付方式'按钮，基于此定位支付按钮");
+
+        var bounds = changePaymentBtn.bounds();
+        // 在"更换支付方式"按钮下方偏移点击，通常支付按钮在其下方
+        var offsetY = this.config.paymentClickOffset.yOffset;
+        var clickX = bounds.centerX();
+        var clickY = bounds.centerY() + offsetY;
+
+        logger.addLog(window, "基于'更换支付方式'位置计算支付按钮坐标: (" + clickX + "," + clickY + ")");
+        logger.addLog(window, "偏移量: " + offsetY + "像素");
+        logger.addLog(window, "自动点击支付按钮进入支付页面...");
+
+        try {
+            click(clickX, clickY);
+            sleep(this.config.waitTimes.payment);
+            return true;
+        } catch (e) {
+            logger.addLog(window, "基于'更换支付方式'的点击失败: " + e.message);
+        }
+    }
+
+    // 备用策略1：寻找配置中的支付按钮
     for (var i = 0; i < this.config.payButtons.length; i++) {
         var payBtn = text(this.config.payButtons[i]).findOne(1000);
-        
+
         if (!payBtn) {
             payBtn = textContains(this.config.payButtons[i]).findOne(1000);
         }
@@ -575,11 +599,11 @@ ProductPurchase.prototype.handlePayment = function(window) {
         }
     }
 
-    // 查找其他支付按钮
+    // 备用策略2：查找其他支付按钮
     var anyPayBtn = textContains("支付").findOne(2000);
     if (anyPayBtn) {
         logger.addLog(window, "找到支付按钮: " + anyPayBtn.text());
-        
+
         if (safeClick(anyPayBtn)) {
             sleep(this.config.waitTimes.payment);
             return true;

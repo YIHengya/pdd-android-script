@@ -70,6 +70,12 @@ const PDD_CONFIG = {
         "提交订单",
         "确认下单"
     ],
+
+    // 支付按钮点击偏移配置
+    paymentClickOffset: {
+        // 基于"更换支付方式"按钮的Y轴偏移量（向下偏移）
+        yOffset: 100
+    },
     
     // 主页标识元素
     homeIndicators: [
