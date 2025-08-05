@@ -30,7 +30,7 @@ FloatingMenu.prototype.create = function() {
                         <text id="statusText" text="就绪" textColor="#666666" textSize="12sp" layout_gravity="right" margin="10dp 0 0 0"/>
                     </horizontal>
                     
-                    <vertical margin="5dp 5dp 2dp 5dp">
+                    <vertical id="purchaseControls" margin="5dp 5dp 2dp 5dp" visibility="visible">
                         <horizontal gravity="center_vertical">
                             <text text="价格区间:" textColor="#333333" textSize="14sp"/>
                             <text id="priceRangeDisplay" text="0.50-0.80元" textColor="#333333" textSize="14sp"
@@ -50,9 +50,7 @@ FloatingMenu.prototype.create = function() {
                                      max="100" progress="37" progressTint="#FF5722" thumbTint="#FF5722"/>
                             <text id="maxPriceText" text="0.80" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
                         </horizontal>
-                    </vertical>
 
-                    <vertical margin="2dp 5dp 5dp 5dp">
                         <horizontal gravity="center_vertical" margin="0 0 5dp 0">
                             <text text="购买数量:" textColor="#333333" textSize="12sp" w="60dp"/>
                             <text id="quantityDisplay" text="1件" textColor="#333333" textSize="12sp" textStyle="bold" margin="5dp 0 0 0"/>
@@ -64,11 +62,33 @@ FloatingMenu.prototype.create = function() {
                                      max="99" progress="0" progressTint="#9C27B0" thumbTint="#9C27B0"/>
                             <text id="quantityText" text="1" textColor="#666666" textSize="11sp" w="25dp" gravity="center"/>
                         </horizontal>
+                    </vertical>
+
+                    <vertical id="paymentControls" margin="5dp 5dp 2dp 5dp" visibility="gone">
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="支付功能:" textColor="#333333" textSize="14sp" textStyle="bold"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                            <text text="• 自动导航到待支付页面" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                            <text text="• 检测待支付订单" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="• 准备支付流程" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+                    </vertical>
+
+                    <vertical margin="2dp 5dp 5dp 5dp">
 
                         <horizontal gravity="center">
-                            <text text="购买模式" textColor="#2196F3" textSize="14sp"
-                                  bg="#E3F2FD" padding="8dp" gravity="center"
-                                  w="200dp" h="40dp" margin="5dp"/>
+                            <button id="purchaseModeBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
+                                    w="90dp" h="35dp" margin="2dp" textSize="11sp"/>
+                            <button id="paymentModeBtn" text="支付模式" textColor="#666666" bg="#E0E0E0"
+                                    w="90dp" h="35dp" margin="2dp" textSize="11sp"/>
                         </horizontal>
                     </vertical>
 
@@ -115,9 +135,9 @@ FloatingMenu.prototype.create = function() {
         self.initializePriceDisplay();
         // 初始化购买数量显示
         self.initializeQuantityDisplay();
+        // 初始化模式按钮状态
+        self.updateModeButtons();
     }, 100);
-
-    this.updateModeButtons();
     return this.menuWindow;
 };
 
@@ -286,6 +306,16 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             }
         });
 
+        // 购买模式按钮事件处理
+        this.menuWindow.purchaseModeBtn.click(function() {
+            self.switchToMode('purchase');
+        });
+
+        // 支付模式按钮事件处理
+        this.menuWindow.paymentModeBtn.click(function() {
+            self.switchToMode('payment');
+        });
+
     } catch (e) {
         console.error("Error setting up event handlers: " + e.message);
         // 如果设置事件处理器失败，稍后重试
@@ -337,6 +367,11 @@ FloatingMenu.prototype.startScript = function() {
                 min: minPrice,
                 max: maxPrice
             };
+
+            // 添加调试日志
+            self.addLog("当前模式: " + self.currentMode);
+            self.addLog("传递参数 - 模式: " + self.currentMode + ", 价格区间: " + minPrice + "-" + maxPrice + " 元, 数量: " + purchaseQuantity + "件");
+
             self.onStartCallback(self.menuWindow, priceRange, self.currentMode, purchaseQuantity);
         }
     }, 100);
@@ -360,22 +395,56 @@ FloatingMenu.prototype.stopScript = function() {
 };
 
 /**
- * 设置模式（固定为购买模式）
+ * 设置模式
  */
 FloatingMenu.prototype.setMode = function(mode) {
-    this.currentMode = 'purchase'; // 固定为购买模式
-    this.addLog("当前模式: 购买模式");
+    this.currentMode = mode || 'purchase';
+    this.switchToMode(this.currentMode);
+};
+
+/**
+ * 切换到指定模式
+ */
+FloatingMenu.prototype.switchToMode = function(mode) {
+    this.currentMode = mode;
+
+    if (mode === 'purchase') {
+        // 切换到购买模式
+        this.menuWindow.purchaseModeBtn.attr('textColor', '#ffffff');
+        this.menuWindow.purchaseModeBtn.attr('bg', '#2196F3');
+        this.menuWindow.paymentModeBtn.attr('textColor', '#666666');
+        this.menuWindow.paymentModeBtn.attr('bg', '#E0E0E0');
+
+        // 显示购买模式控件，隐藏支付模式控件
+        this.menuWindow.purchaseControls.attr('visibility', 'visible');
+        this.menuWindow.paymentControls.attr('visibility', 'gone');
+
+        this.addLog("切换到购买模式");
+    } else if (mode === 'payment') {
+        // 切换到支付模式
+        this.menuWindow.paymentModeBtn.attr('textColor', '#ffffff');
+        this.menuWindow.paymentModeBtn.attr('bg', '#FF9800');
+        this.menuWindow.purchaseModeBtn.attr('textColor', '#666666');
+        this.menuWindow.purchaseModeBtn.attr('bg', '#E0E0E0');
+
+        // 显示支付模式控件，隐藏购买模式控件
+        this.menuWindow.purchaseControls.attr('visibility', 'gone');
+        this.menuWindow.paymentControls.attr('visibility', 'visible');
+
+        this.addLog("切换到支付模式");
+    }
 
     if (this.onModeChangeCallback) {
-        this.onModeChangeCallback('purchase');
+        this.onModeChangeCallback(mode);
     }
 };
 
 /**
- * 更新模式按钮状态（已移除，保留空方法以防兼容性问题）
+ * 更新模式按钮状态
  */
 FloatingMenu.prototype.updateModeButtons = function() {
-    // 模式已固定为购买模式，无需更新按钮状态
+    // 初始化时设置默认的购买模式
+    this.switchToMode(this.currentMode);
 };
 
 /**

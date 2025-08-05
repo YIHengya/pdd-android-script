@@ -4,6 +4,7 @@
 "ui";
 
 const ProductPurchase = require('../modules/product-purchase.js');
+const AutoPayment = require('../modules/auto-payment.js');
 const UserInfo = require('../modules/user-info.js');
 const UserInfoManager = require('../utils/user-info-manager.js');
 const FloatingWindow = require('./floating-window.js');
@@ -14,6 +15,7 @@ const FloatingWindow = require('./floating-window.js');
 function MainUI() {
     this.floatingWindow = null;
     this.productPurchase = null;
+    this.autoPayment = null;
     this.userInfo = null;
     this.userInfoManager = null; // 用户信息管理器
     this.isFloatingWindowActive = false;
@@ -213,6 +215,7 @@ MainUI.prototype.initializeModules = function() {
     var self = this;
 
     this.productPurchase = new ProductPurchase();
+    this.autoPayment = new AutoPayment();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
 
@@ -439,9 +442,18 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     });
                 }
 
-                // 执行购买功能
+                // 根据模式执行不同功能
                 var userName = self.getUserName();
-                self.productPurchase.execute(window, priceRange, userName, purchaseQuantity);
+
+                if (mode === 'payment') {
+                    // 执行自动支付功能
+                    self.addLog("执行模式: 自动支付");
+                    self.autoPayment.execute(window, userName);
+                } else {
+                    // 执行购买功能
+                    self.addLog("执行模式: 自动购买");
+                    self.productPurchase.execute(window, priceRange, userName, purchaseQuantity);
+                }
 
             } catch (e) {
                 ui.run(function() {

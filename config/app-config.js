@@ -16,7 +16,7 @@ const PDD_CONFIG = {
     ],
     
     // 默认目标价格（保持向后兼容）
-    defaultTargetPrice: 0.8,
+    defaultTargetPrice: 0.65,
 
     // 默认价格区间
     defaultPriceRange: {
