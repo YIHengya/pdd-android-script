@@ -8,6 +8,7 @@ const permissions = require('./utils/permissions.js');
 const { COMMON_CONFIG } = require('./config/app-config.js');
 const FloatingWindow = require('./ui/floating-window.js');
 const ProductPurchase = require('./modules/product-purchase.js');
+const ProductFavorite = require('./modules/product-favorite.js');
 const AutoPayment = require('./modules/auto-payment.js');
 const UserInfo = require('./modules/user-info.js');
 const UserInfoManager = require('./utils/user-info-manager.js');
@@ -19,6 +20,7 @@ const { GlobalStopManager } = require('./utils/common.js');
 function MainApp() {
     this.floatingWindow = null;
     this.productPurchase = null;
+    this.productFavorite = null;
     this.autoPayment = null;
     this.userInfo = null;
     this.userInfoManager = null; // 用户信息管理器
@@ -35,6 +37,7 @@ MainApp.prototype.init = function() {
     // 创建模块实例
     this.floatingWindow = new FloatingWindow();
     this.productPurchase = new ProductPurchase();
+    this.productFavorite = new ProductFavorite();
     this.autoPayment = new AutoPayment();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
@@ -89,6 +92,11 @@ MainApp.prototype.setupCallbacks = function() {
                     // 执行自动支付功能
                     logger.addLog(window, "执行模式: 自动支付");
                     self.autoPayment.execute(window, userName);
+                } else if (mode === 'favorite') {
+                    // 执行收藏功能，传入用户名和收藏数量
+                    logger.addLog(window, "执行模式: 批量收藏");
+                    logger.addLog(window, "收藏数量: " + purchaseQuantity + "件");
+                    self.productFavorite.execute(window, priceRange, userName, purchaseQuantity);
                 } else {
                     // 执行购买功能，传入用户名和购买数量
                     logger.addLog(window, "执行模式: 自动购买 (默认或其他模式)");

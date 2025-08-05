@@ -26,7 +26,7 @@ FloatingMenu.prototype.create = function() {
             <card cardCornerRadius="10dp" cardElevation="8dp" margin="5dp" cardBackgroundColor="#f8f9fa">
                 <vertical padding="15dp">
                     <horizontal margin="5dp" gravity="center_vertical">
-                        <Switch id="scriptSwitch" text="自动下单" textColor="#333333" textSize="14sp" checked="false" layout_weight="0"/>
+                        <Switch id="scriptSwitch" text="启动脚本" textColor="#333333" textSize="14sp" checked="false" layout_weight="0"/>
                         <text id="statusText" text="就绪" textColor="#666666" textSize="12sp" layout_gravity="right" margin="10dp 0 0 0"/>
                     </horizontal>
                     
@@ -82,13 +82,33 @@ FloatingMenu.prototype.create = function() {
                         </horizontal>
                     </vertical>
 
+                    <vertical id="favoriteControls" margin="5dp 5dp 2dp 5dp" visibility="gone">
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="收藏功能:" textColor="#333333" textSize="14sp" textStyle="bold"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                            <text text="• 自动寻找符合价格的商品" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                            <text text="• 批量收藏商品到收藏夹" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="• 避免重复收藏相同商品" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+                    </vertical>
+
                     <vertical margin="2dp 5dp 5dp 5dp">
 
                         <horizontal gravity="center">
                             <button id="purchaseModeBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
-                                    w="90dp" h="35dp" margin="2dp" textSize="11sp"/>
+                                    w="80dp" h="35dp" margin="2dp" textSize="10sp"/>
                             <button id="paymentModeBtn" text="支付模式" textColor="#666666" bg="#E0E0E0"
-                                    w="90dp" h="35dp" margin="2dp" textSize="11sp"/>
+                                    w="80dp" h="35dp" margin="2dp" textSize="10sp"/>
+                            <button id="favoriteModeBtn" text="收藏模式" textColor="#666666" bg="#E0E0E0"
+                                    w="80dp" h="35dp" margin="2dp" textSize="10sp"/>
                         </horizontal>
                     </vertical>
 
@@ -316,6 +336,11 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             self.switchToMode('payment');
         });
 
+        // 收藏模式按钮事件处理
+        this.menuWindow.favoriteModeBtn.click(function() {
+            self.switchToMode('favorite');
+        });
+
     } catch (e) {
         console.error("Error setting up event handlers: " + e.message);
         // 如果设置事件处理器失败，稍后重试
@@ -408,30 +433,37 @@ FloatingMenu.prototype.setMode = function(mode) {
 FloatingMenu.prototype.switchToMode = function(mode) {
     this.currentMode = mode;
 
+    // 重置所有按钮样式
+    this.menuWindow.purchaseModeBtn.attr('textColor', '#666666');
+    this.menuWindow.purchaseModeBtn.attr('bg', '#E0E0E0');
+    this.menuWindow.paymentModeBtn.attr('textColor', '#666666');
+    this.menuWindow.paymentModeBtn.attr('bg', '#E0E0E0');
+    this.menuWindow.favoriteModeBtn.attr('textColor', '#666666');
+    this.menuWindow.favoriteModeBtn.attr('bg', '#E0E0E0');
+
+    // 隐藏所有控件
+    this.menuWindow.purchaseControls.attr('visibility', 'gone');
+    this.menuWindow.paymentControls.attr('visibility', 'gone');
+    this.menuWindow.favoriteControls.attr('visibility', 'gone');
+
     if (mode === 'purchase') {
         // 切换到购买模式
         this.menuWindow.purchaseModeBtn.attr('textColor', '#ffffff');
         this.menuWindow.purchaseModeBtn.attr('bg', '#2196F3');
-        this.menuWindow.paymentModeBtn.attr('textColor', '#666666');
-        this.menuWindow.paymentModeBtn.attr('bg', '#E0E0E0');
-
-        // 显示购买模式控件，隐藏支付模式控件
         this.menuWindow.purchaseControls.attr('visibility', 'visible');
-        this.menuWindow.paymentControls.attr('visibility', 'gone');
-
         this.addLog("切换到购买模式");
     } else if (mode === 'payment') {
         // 切换到支付模式
         this.menuWindow.paymentModeBtn.attr('textColor', '#ffffff');
         this.menuWindow.paymentModeBtn.attr('bg', '#FF9800');
-        this.menuWindow.purchaseModeBtn.attr('textColor', '#666666');
-        this.menuWindow.purchaseModeBtn.attr('bg', '#E0E0E0');
-
-        // 显示支付模式控件，隐藏购买模式控件
-        this.menuWindow.purchaseControls.attr('visibility', 'gone');
         this.menuWindow.paymentControls.attr('visibility', 'visible');
-
         this.addLog("切换到支付模式");
+    } else if (mode === 'favorite') {
+        // 切换到收藏模式
+        this.menuWindow.favoriteModeBtn.attr('textColor', '#ffffff');
+        this.menuWindow.favoriteModeBtn.attr('bg', '#E91E63');
+        this.menuWindow.purchaseControls.attr('visibility', 'visible'); // 收藏模式也需要价格和数量设置
+        this.addLog("切换到收藏模式");
     }
 
     if (this.onModeChangeCallback) {

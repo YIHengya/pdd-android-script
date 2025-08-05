@@ -4,6 +4,7 @@
 "ui";
 
 const ProductPurchase = require('../modules/product-purchase.js');
+const ProductFavorite = require('../modules/product-favorite.js');
 const AutoPayment = require('../modules/auto-payment.js');
 const UserInfo = require('../modules/user-info.js');
 const UserInfoManager = require('../utils/user-info-manager.js');
@@ -15,6 +16,7 @@ const FloatingWindow = require('./floating-window.js');
 function MainUI() {
     this.floatingWindow = null;
     this.productPurchase = null;
+    this.productFavorite = null;
     this.autoPayment = null;
     this.userInfo = null;
     this.userInfoManager = null; // 用户信息管理器
@@ -215,6 +217,7 @@ MainUI.prototype.initializeModules = function() {
     var self = this;
 
     this.productPurchase = new ProductPurchase();
+    this.productFavorite = new ProductFavorite();
     this.autoPayment = new AutoPayment();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
@@ -449,6 +452,11 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     // 执行自动支付功能
                     self.addLog("执行模式: 自动支付");
                     self.autoPayment.execute(window, userName);
+                } else if (mode === 'favorite') {
+                    // 执行收藏功能
+                    self.addLog("执行模式: 批量收藏");
+                    self.addLog("收藏数量: " + purchaseQuantity + "件");
+                    self.productFavorite.execute(window, priceRange, userName, purchaseQuantity);
                 } else {
                     // 执行购买功能
                     self.addLog("执行模式: 自动购买");
