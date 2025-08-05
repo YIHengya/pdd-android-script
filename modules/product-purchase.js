@@ -548,6 +548,9 @@ ProductPurchase.prototype.waitForAlipayAndReturn = function(window) {
         // 检查是否出现待支付按钮（说明订单已创建）
         var pendingPaymentElement = className("android.widget.TextView").textContains("待支付").findOne(1000);
 
+        // 检查是否出现待付款按钮（说明订单已创建）
+        var pendingPayElement = className("android.widget.TextView").textContains("待付款").findOne(1000);
+
         if (alipayElement) {
             logger.addLog(window, "检测到支付宝页面，订单已创建，准备返回主页");
             orderCompleted = true;
@@ -556,6 +559,12 @@ ProductPurchase.prototype.waitForAlipayAndReturn = function(window) {
 
         if (pendingPaymentElement) {
             logger.addLog(window, "检测到待支付状态，订单已创建，准备返回主页");
+            orderCompleted = true;
+            break;
+        }
+
+        if (pendingPayElement) {
+            logger.addLog(window, "检测到待付款状态，订单已创建，准备返回主页");
             orderCompleted = true;
             break;
         }
