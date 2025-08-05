@@ -135,6 +135,7 @@ ForbiddenKeywordsChecker.prototype.resetToDefault = function() {
         "专属定制",
         "来图定制",
         "按需定制",
+        "无需下单",
         "客制化",
         "个人定制",
         "DIY定制",

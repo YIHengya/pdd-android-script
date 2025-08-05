@@ -267,6 +267,13 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
                 if (this.config.pricePatterns[j].test(text)) {
                     var price = parsePrice(text);
                     if (price !== null && price > 0 && price >= priceRange.min && price <= priceRange.max) {
+
+                        // 过滤掉搜索框和其他非商品区域的文本
+                        if (this.isSearchBoxOrNonProductArea(element, text)) {
+                            logger.addLog(window, "跳过搜索框或非商品区域: " + text);
+                            continue;
+                        }
+
                         logger.addLog(window, "找到新商品: " + text + " (价格: " + price + " 元)");
 
                         // 记录点击位置
@@ -316,6 +323,61 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
     }
 
     return null;
+};
+
+/**
+ * 检查元素是否为搜索框或其他非商品区域
+ * @param {Object} element 要检查的元素
+ * @param {string} text 元素文本
+ * @returns {boolean} 是否为非商品区域
+ */
+ProductPurchase.prototype.isSearchBoxOrNonProductArea = function(element, text) {
+    try {
+        var bounds = element.bounds();
+        var screenHeight = device.height;
+
+        // 1. 检查是否在屏幕顶部区域（搜索框通常在顶部）
+        if (bounds.centerY() < screenHeight * 0.15) {
+            logger.addLog(null, "跳过顶部区域元素: " + text);
+            return true;
+        }
+
+        // 2. 检查文本内容是否包含搜索相关关键词
+        var searchKeywords = ["秒杀", "搜索", "输入", "查找", "搜", "找"];
+        for (var i = 0; i < searchKeywords.length; i++) {
+            if (text.indexOf(searchKeywords[i]) !== -1) {
+                logger.addLog(null, "跳过包含搜索关键词的元素: " + text);
+                return true;
+            }
+        }
+
+        // 3. 检查元素的父容器是否为输入框
+        var parent = element.parent();
+        var maxLevels = 3;
+        var level = 0;
+
+        while (parent && level < maxLevels) {
+            var className = parent.className();
+            if (className && (className.indexOf("EditText") !== -1 || className.indexOf("Input") !== -1)) {
+                logger.addLog(null, "跳过输入框内的元素: " + text);
+                return true;
+            }
+            parent = parent.parent();
+            level++;
+        }
+
+        // 4. 检查是否为导航栏或底部区域
+        if (bounds.centerY() > screenHeight * 0.9) {
+            logger.addLog(null, "跳过底部区域元素: " + text);
+            return true;
+        }
+
+        return false;
+
+    } catch (e) {
+        // 如果检查过程出错，为了安全起见返回false（不跳过）
+        return false;
+    }
 };
 
 /**
