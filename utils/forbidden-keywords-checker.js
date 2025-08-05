@@ -21,7 +21,11 @@ function ForbiddenKeywordsChecker() {
         "个人定制",
         "DIY定制",
         "补差价",
-        "偏远地区"
+        "偏远地区",
+        "勿拍",
+        "请勿拍",
+        "不要拍",
+        "禁止拍"
     ];
 }
 
