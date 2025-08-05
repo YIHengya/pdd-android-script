@@ -4,7 +4,6 @@
 "ui";
 
 const ProductPurchase = require('../modules/product-purchase.js');
-const ProductCollect = require('../modules/product-collect.js');
 const UserInfo = require('../modules/user-info.js');
 const UserInfoManager = require('../utils/user-info-manager.js');
 const FloatingWindow = require('./floating-window.js');
@@ -15,7 +14,6 @@ const FloatingWindow = require('./floating-window.js');
 function MainUI() {
     this.floatingWindow = null;
     this.productPurchase = null;
-    this.productCollect = null;
     this.userInfo = null;
     this.userInfoManager = null; // 用户信息管理器
     this.isFloatingWindowActive = false;
@@ -61,11 +59,8 @@ MainUI.prototype.show = function() {
                                 <text text="功能设置" textSize="18sp" textStyle="bold" textColor="#333333" margin="0 0 12dp 0"/>
                                 
                                 <horizontal gravity="center_vertical" margin="0 0 8dp 0">
-                                    <text text="默认模式:" textSize="14sp" textColor="#666666" w="80dp"/>
-                                    <radiogroup id="modeGroup" orientation="horizontal">
-                                        <radio id="purchaseMode" text="购买模式" textSize="14sp" checked="true" margin="0 16dp 0 0"/>
-                                        <radio id="collectMode" text="收藏模式" textSize="14sp"/>
-                                    </radiogroup>
+                                    <text text="模式:" textSize="14sp" textColor="#666666" w="80dp"/>
+                                    <text text="购买模式" textSize="14sp" textColor="#2196F3" margin="8dp 0 0 0"/>
                                 </horizontal>
                                 
                                 <horizontal gravity="center_vertical" margin="0 0 8dp 0">
@@ -218,7 +213,6 @@ MainUI.prototype.initializeModules = function() {
     var self = this;
 
     this.productPurchase = new ProductPurchase();
-    this.productCollect = new ProductCollect();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
 
@@ -445,13 +439,9 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     });
                 }
 
-                // 执行对应功能
-                if (mode === 'collect') {
-                    self.productCollect.execute(window, priceRange);
-                } else {
-                    var userName = self.getUserName();
-                    self.productPurchase.execute(window, priceRange, userName, purchaseQuantity);
-                }
+                // 执行购买功能
+                var userName = self.getUserName();
+                self.productPurchase.execute(window, priceRange, userName, purchaseQuantity);
 
             } catch (e) {
                 ui.run(function() {
@@ -505,9 +495,6 @@ MainUI.prototype.startScript = function() {
         max: maxPrice
     };
 
-    // 获取模式
-    var mode = ui.purchaseMode.isChecked() ? 'purchase' : 'collect';
-
     // 获取购买数量
     var purchaseQuantity = 1;
     try {
@@ -518,11 +505,9 @@ MainUI.prototype.startScript = function() {
         purchaseQuantity = 1;
     }
 
-    this.addLog("启动脚本: " + (mode === 'purchase' ? '购买' : '收藏') + "模式");
+    this.addLog("启动脚本: 购买模式");
     this.addLog("价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + "元");
-    if (mode === 'purchase') {
-        this.addLog("购买数量: " + purchaseQuantity + "件");
-    }
+    this.addLog("购买数量: " + purchaseQuantity + "件");
 
     // 更新按钮状态
     ui.startScriptBtn.setEnabled(false);
@@ -543,13 +528,9 @@ MainUI.prototype.startScript = function() {
                 });
             }
 
-            // 执行对应功能
-            if (mode === 'collect') {
-                self.productCollect.execute(null, priceRange);
-            } else {
-                var userName = self.getUserName();
-                self.productPurchase.execute(null, priceRange, userName, purchaseQuantity);
-            }
+            // 执行购买功能
+            var userName = self.getUserName();
+            self.productPurchase.execute(null, priceRange, userName, purchaseQuantity);
 
         } catch (e) {
             ui.run(function() {
@@ -683,11 +664,11 @@ MainUI.prototype.showHelp = function() {
     dialogs.alert("使用帮助",
         "1. 启用悬浮窗：开启后可在任意界面使用\n" +
         "2. 设置价格区间：调整最低价和最高价\n" +
-        "3. 选择模式：购买模式或收藏模式\n" +
+        "3. 设置购买数量：调整每次购买的商品数量\n" +
         "4. 更新用户信息：获取最新的账号和收件人信息\n" +
         "5. 保存到本地：将用户信息保存到本地存储\n" +
         "6. 清除本地：清除本地保存的用户信息\n" +
-        "7. 启动脚本：开始自动化操作\n\n" +
+        "7. 启动脚本：开始自动化购买操作\n\n" +
         "本地存储功能：\n" +
         "• 应用启动时自动加载本地保存的用户信息\n" +
         "• 获取用户信息后自动保存到本地\n" +
@@ -705,8 +686,8 @@ MainUI.prototype.showAbout = function() {
         "功能特性：\n" +
         "• 悬浮窗控制\n" +
         "• 自动购买商品\n" +
-        "• 自动收藏商品\n" +
         "• 价格区间设置\n" +
+        "• 购买数量设置\n" +
         "• 用户信息管理\n\n" +
         "使用须知：\n" +
         "请遵守相关法律法规，合理使用自动化工具"

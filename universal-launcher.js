@@ -17,7 +17,7 @@ function UniversalLauncher() {
 
 /**
  * 启动指定类型的脚本
- * @param {string} type 脚本类型: 'main', 'floating', 'pddauto', 'debug'
+ * @param {string} type 脚本类型: 'main', 'floating', 'debug'
  */
 UniversalLauncher.prototype.launch = function(type) {
     console.log("🚀 通用启动器: 准备启动 " + type + " 脚本");
@@ -48,9 +48,6 @@ UniversalLauncher.prototype.launch = function(type) {
             break;
         case 'floating':
             this.launchFloatingScript();
-            break;
-        case 'pddauto':
-            this.launchPDDAutoScript();
             break;
         case 'debug':
             this.launchDebugScript();
@@ -90,18 +87,7 @@ UniversalLauncher.prototype.launchFloatingScript = function() {
     }
 };
 
-/**
- * 启动PDD自动脚本
- */
-UniversalLauncher.prototype.launchPDDAutoScript = function() {
-    console.log("启动PDD自动脚本...");
-    try {
-        require('./pddauto.js');
-        console.log("✅ PDD自动脚本启动成功");
-    } catch (e) {
-        console.error("❌ PDD自动脚本启动失败: " + e.message);
-    }
-};
+
 
 /**
  * 启动调试脚本
@@ -123,7 +109,6 @@ UniversalLauncher.prototype.showUsage = function() {
     console.log("使用方法:");
     console.log("- main: 启动主界面");
     console.log("- floating: 启动悬浮窗模式");
-    console.log("- pddauto: 启动PDD自动收藏脚本");
     console.log("- debug: 启动调试工具");
 };
 

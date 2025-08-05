@@ -8,7 +8,6 @@ const permissions = require('./utils/permissions.js');
 const { COMMON_CONFIG } = require('./config/app-config.js');
 const FloatingWindow = require('./ui/floating-window.js');
 const ProductPurchase = require('./modules/product-purchase.js');
-const ProductCollect = require('./modules/product-collect.js');
 const UserInfo = require('./modules/user-info.js');
 const { GlobalStopManager } = require('./utils/common.js');
 
@@ -18,7 +17,6 @@ const { GlobalStopManager } = require('./utils/common.js');
 function FloatingApp() {
     this.floatingWindow = null;
     this.productPurchase = null;
-    this.productCollect = null;
     this.userInfo = null;
     this.scriptThread = null;
     this.currentUserData = null;
@@ -34,7 +32,6 @@ FloatingApp.prototype.init = function() {
     // 创建模块实例
     this.floatingWindow = new FloatingWindow();
     this.productPurchase = new ProductPurchase();
-    this.productCollect = new ProductCollect();
     this.userInfo = new UserInfo();
 
     // 创建悬浮窗
@@ -95,13 +92,8 @@ FloatingApp.prototype.setupCallbacks = function() {
 
                 logger.addLog(window, "使用用户名: " + userName);
 
-                // 根据模式选择执行功能
-                if (mode === 'collect') {
-                    self.productCollect.execute(window, priceRange);
-                } else {
-                    // 默认执行购买功能，传入用户名
-                    self.productPurchase.execute(window, priceRange, userName);
-                }
+                // 执行购买功能，传入用户名
+                self.productPurchase.execute(window, priceRange, userName);
             } catch (e) {
                 // 在UI线程中更新日志
                 ui.run(function() {

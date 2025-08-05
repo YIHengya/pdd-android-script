@@ -41,12 +41,9 @@ pdd-script/
 ### UI模块 (ui/)
 - **floating-window.js**: 悬浮窗UI的创建和管理，包括事件处理和回调设置
 
-### 功能模块 (modules/pdd/)
-- **pdd-module.js**: 拼多多功能的主模块，整合所有子模块
-- **app-launcher.js**: 负责启动和检测拼多多应用
-- **product-finder.js**: 在主页搜索符合条件的商品
-- **purchase-handler.js**: 处理商品购买和支付流程
-- **collect-handler.js**: 处理购买后的收集和返回流程
+### 功能模块 (modules/)
+- **product-purchase.js**: 商品购买功能的主模块，处理自动购买流程
+- **user-info.js**: 用户信息获取和管理模块
 
 ## 使用方法
 

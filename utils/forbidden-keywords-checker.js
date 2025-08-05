@@ -143,7 +143,9 @@ ForbiddenKeywordsChecker.prototype.resetToDefault = function() {
         "偏远地区",
         "教学视频",
         "视频",
-        "教程"
+        "教程",
+        "代发",
+        "淘宝"
 
     ];
 };

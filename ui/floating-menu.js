@@ -66,10 +66,9 @@ FloatingMenu.prototype.create = function() {
                         </horizontal>
 
                         <horizontal gravity="center">
-                            <button id="purchaseBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
-                                    w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
-                            <button id="collectBtn" text="收藏模式" textColor="#ffffff" bg="#FF9800"
-                                    w="100dp" h="40dp" margin="5dp" textSize="12sp"/>
+                            <text text="购买模式" textColor="#2196F3" textSize="14sp"
+                                  bg="#E3F2FD" padding="8dp" gravity="center"
+                                  w="200dp" h="40dp" margin="5dp"/>
                         </horizontal>
                     </vertical>
 
@@ -244,15 +243,7 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             }
         });
 
-        // 购买模式按钮
-        this.menuWindow.purchaseBtn.click(function() {
-            self.setMode('purchase');
-        });
-
-        // 收藏模式按钮
-        this.menuWindow.collectBtn.click(function() {
-            self.setMode('collect');
-        });
+        // 购买模式已固定，无需按钮事件
 
         // 更新用户信息按钮
         this.menuWindow.userInfoBtn.click(function() {
@@ -369,33 +360,22 @@ FloatingMenu.prototype.stopScript = function() {
 };
 
 /**
- * 设置模式
+ * 设置模式（固定为购买模式）
  */
 FloatingMenu.prototype.setMode = function(mode) {
-    this.currentMode = mode;
-    this.updateModeButtons();
-    this.addLog("切换到" + (mode === 'purchase' ? '购买' : '收藏') + "模式");
-    
+    this.currentMode = 'purchase'; // 固定为购买模式
+    this.addLog("当前模式: 购买模式");
+
     if (this.onModeChangeCallback) {
-        this.onModeChangeCallback(mode);
+        this.onModeChangeCallback('purchase');
     }
 };
 
 /**
- * 更新模式按钮状态
+ * 更新模式按钮状态（已移除，保留空方法以防兼容性问题）
  */
 FloatingMenu.prototype.updateModeButtons = function() {
-    if (!this.menuWindow) return;
-    
-    ui.run(() => {
-        if (this.currentMode === 'purchase') {
-            this.menuWindow.purchaseBtn.attr("bg", "#1976D2");
-            this.menuWindow.collectBtn.attr("bg", "#FF9800");
-        } else {
-            this.menuWindow.purchaseBtn.attr("bg", "#2196F3");
-            this.menuWindow.collectBtn.attr("bg", "#F57C00");
-        }
-    });
+    // 模式已固定为购买模式，无需更新按钮状态
 };
 
 /**
