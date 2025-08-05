@@ -95,9 +95,14 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
                 continue;
             }
 
+            logger.addLog(window, "找到商品信息 - 文本: '" + foundProduct.text + "', 价格: " + foundProduct.price + " 元");
+
             // 检查是否已经收藏过这个商品
             if (this.isProductAlreadyFavorited(foundProduct.text)) {
                 logger.addLog(window, "商品已收藏过，跳过: " + foundProduct.text);
+                // 返回主页继续寻找其他商品
+                this.navigationHelper.goToHomePage(window);
+                sleep(1000);
                 continue;
             }
 
@@ -109,16 +114,17 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
             if (favoriteSuccess) {
                 successCount++;
                 logger.addLog(window, "✅ 第 " + (i + 1) + " 件商品收藏成功");
-                
-                // 记录已收藏商品
+
+                // 只有真正收藏成功才记录商品
                 this.addFavoritedProduct(foundProduct.text, foundProduct.price);
-                
+                logger.addLog(window, "已记录收藏商品到本地存储");
+
                 // 返回主页准备收藏下一个商品
                 this.navigationHelper.goToHomePage(window);
                 sleep(1000);
             } else {
                 logger.addLog(window, "❌ 第 " + (i + 1) + " 件商品收藏失败");
-                // 返回主页重试
+                // 收藏失败时不记录商品，返回主页重试
                 this.navigationHelper.goToHomePage(window);
                 sleep(1000);
             }
@@ -344,7 +350,7 @@ ProductFavorite.prototype.findImageAreaAbovePrice = function(priceBounds) {
  * 点击商品
  * @param {Object} window 悬浮窗对象
  * @param {Object} element 商品元素
- * @returns {boolean} 是否点击成功
+ * @returns {boolean} 是否点击成功并进入详情页
  */
 ProductFavorite.prototype.clickProduct = function(window, element) {
     try {
@@ -357,8 +363,15 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
         if (safeClick(element)) {
             logger.addLog(window, "使用safeClick点击商品");
             sleep(this.config.waitTimes.click);
-            this.verifyProductDetailPage(window);
-            return true;
+
+            // 验证是否成功进入商品详情页
+            if (this.verifyProductDetailPage(window)) {
+                logger.addLog(window, "✅ 成功进入商品详情页");
+                return true;
+            } else {
+                logger.addLog(window, "❌ 未能进入商品详情页");
+                return false;
+            }
         }
 
         // 策略2: 直接坐标点击商品图片区域（价格上方）
@@ -366,8 +379,15 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
         logger.addLog(window, "尝试点击商品图片区域: (" + bounds.centerX() + "," + imageY + ")");
         click(bounds.centerX(), imageY);
         sleep(this.config.waitTimes.click);
-        this.verifyProductDetailPage(window);
-        return true;
+
+        // 验证是否成功进入商品详情页
+        if (this.verifyProductDetailPage(window)) {
+            logger.addLog(window, "✅ 成功进入商品详情页");
+            return true;
+        } else {
+            logger.addLog(window, "❌ 未能进入商品详情页");
+            return false;
+        }
 
     } catch (e) {
         logger.addLog(window, "点击商品失败: " + e.message);
@@ -382,17 +402,53 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
  */
 ProductFavorite.prototype.verifyProductDetailPage = function(window) {
     try {
-        // 简单等待页面加载
-        sleep(2000);
+        logger.addLog(window, "验证是否进入商品详情页...");
+        sleep(3000); // 等待页面加载
 
-        // 简化验证：直接返回true，让后续流程继续
-        // 如果真的没有进入商品详情页，后续的收藏操作会失败并处理
-        logger.addLog(window, "等待页面加载完成...");
+        // 检查商品详情页的特征元素
+        var detailPageIndicators = [
+            "立即购买",
+            "马上抢",
+            "立即抢购",
+            "现在购买",
+            "立即下单",
+            "去购买",
+            "购买",
+            "收藏",
+            "加入收藏",
+            "商品详情",
+            "规格参数",
+            "商品评价"
+        ];
+
+        for (var i = 0; i < detailPageIndicators.length; i++) {
+            if (text(detailPageIndicators[i]).findOne(1000)) {
+                logger.addLog(window, "检测到商品详情页元素: " + detailPageIndicators[i]);
+                return true;
+            }
+        }
+
+        // 检查是否还在主页或列表页（如果是，说明没有成功进入详情页）
+        var homePageIndicators = [
+            "搜索",
+            "首页",
+            "分类",
+            "个人中心"
+        ];
+
+        for (var j = 0; j < homePageIndicators.length; j++) {
+            if (text(homePageIndicators[j]).findOne(500)) {
+                logger.addLog(window, "检测到主页元素，可能没有进入商品详情页: " + homePageIndicators[j]);
+                return false;
+            }
+        }
+
+        logger.addLog(window, "无法确定是否在商品详情页，继续执行");
         return true;
 
     } catch (e) {
-        logger.addLog(window, "页面加载等待失败: " + e.message);
-        return true; // 即使出错也继续执行
+        logger.addLog(window, "验证商品详情页失败: " + e.message);
+        return false;
     }
 };
 
@@ -405,6 +461,14 @@ ProductFavorite.prototype.favoriteProduct = function(window) {
     logger.addLog(window, "进入商品详情页，开始收藏...");
 
     sleep(this.config.waitTimes.pageLoad);
+
+    // 先触发规格选择（参考购买逻辑）
+    logger.addLog(window, "先触发规格选择以确保商品有规格信息...");
+    if (this.triggerSpecificationSelection(window)) {
+        logger.addLog(window, "规格选择已触发，现在开始收藏");
+    } else {
+        logger.addLog(window, "规格选择触发失败，继续尝试收藏");
+    }
 
     // 寻找收藏按钮
     for (var i = 0; i < this.favoriteButtons.length; i++) {
@@ -458,23 +522,160 @@ ProductFavorite.prototype.favoriteProduct = function(window) {
 };
 
 /**
+ * 触发规格选择（参考购买逻辑）
+ * @param {Object} window 悬浮窗对象
+ * @returns {boolean} 是否成功触发规格选择
+ */
+ProductFavorite.prototype.triggerSpecificationSelection = function(window) {
+    try {
+        logger.addLog(window, "尝试触发规格选择...");
+
+        // 寻找购买按钮（参考购买模块的逻辑）
+        var buyButtons = [
+            "立即购买",
+            "马上抢",
+            "立即抢购",
+            "现在购买",
+            "立即下单",
+            "去购买",
+            "购买"
+        ];
+
+        for (var i = 0; i < buyButtons.length; i++) {
+            var buyBtn = text(buyButtons[i]).findOne(1000);
+            if (buyBtn) {
+                logger.addLog(window, "找到购买按钮: " + buyButtons[i] + "，点击触发规格选择");
+
+                if (safeClick(buyBtn)) {
+                    sleep(2000); // 等待规格选择页面弹出
+
+                    // 检查是否弹出了规格选择页面
+                    var specificationPageVisible = this.checkSpecificationPageVisible(window);
+                    if (specificationPageVisible) {
+                        logger.addLog(window, "规格选择页面已弹出，关闭页面");
+                        // 关闭规格选择页面
+                        this.closeSpecificationPage(window);
+                        return true;
+                    } else {
+                        logger.addLog(window, "未检测到规格选择页面，可能直接进入了支付流程");
+                        // 如果直接进入支付流程，返回上一页
+                        back();
+                        sleep(1000);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // 尝试右下角点击（参考购买模块的备用策略）
+        logger.addLog(window, "尝试点击右下角购买区域触发规格选择...");
+        var screenWidth = device.width;
+        var screenHeight = device.height;
+        click(screenWidth - 100, screenHeight - 150);
+        sleep(2000);
+
+        // 检查是否弹出了规格选择页面
+        var specificationPageVisible = this.checkSpecificationPageVisible(window);
+        if (specificationPageVisible) {
+            logger.addLog(window, "规格选择页面已弹出，关闭页面");
+            this.closeSpecificationPage(window);
+            return true;
+        } else {
+            logger.addLog(window, "未检测到规格选择页面，可能直接进入了支付流程");
+            // 如果直接进入支付流程，返回上一页
+            back();
+            sleep(1000);
+            return true;
+        }
+
+    } catch (e) {
+        logger.addLog(window, "触发规格选择失败: " + e.message);
+        return false;
+    }
+};
+
+/**
+ * 检查规格选择页面是否可见
+ * @param {Object} window 悬浮窗对象
+ * @returns {boolean} 规格选择页面是否可见
+ */
+ProductFavorite.prototype.checkSpecificationPageVisible = function(window) {
+    try {
+        // 检查常见的规格选择页面元素
+        var specificationKeywords = [
+            "选择规格",
+            "规格选择",
+            "选择颜色",
+            "选择尺寸",
+            "选择型号",
+            "请选择",
+            "颜色分类",
+            "尺码",
+            "款式"
+        ];
+
+        for (var i = 0; i < specificationKeywords.length; i++) {
+            if (textContains(specificationKeywords[i]).findOne(500)) {
+                logger.addLog(window, "检测到规格选择页面关键词: " + specificationKeywords[i]);
+                return true;
+            }
+        }
+
+        // 检查是否有"确定"或"确认"按钮（通常在规格选择页面底部）
+        if (text("确定").findOne(500) || text("确认").findOne(500)) {
+            logger.addLog(window, "检测到确定/确认按钮，可能是规格选择页面");
+            return true;
+        }
+
+        return false;
+    } catch (e) {
+        logger.addLog(window, "检查规格选择页面失败: " + e.message);
+        return false;
+    }
+};
+
+/**
+ * 关闭规格选择页面
+ * @param {Object} window 悬浮窗对象
+ */
+ProductFavorite.prototype.closeSpecificationPage = function(window) {
+    try {
+        logger.addLog(window, "使用返回键关闭规格选择页面...");
+
+        // 使用返回键关闭规格选择页面（最安全的方式）
+        back();
+        sleep(1500); // 等待页面关闭
+
+        logger.addLog(window, "规格选择页面已关闭");
+    } catch (e) {
+        logger.addLog(window, "关闭规格选择页面失败: " + e.message);
+    }
+};
+
+/**
  * 验证收藏是否成功
  * @param {Object} window 悬浮窗对象
  * @returns {boolean} 是否收藏成功
  */
 ProductFavorite.prototype.verifyFavoriteSuccess = function(window) {
     try {
-        // 检查是否出现收藏成功的提示文字
+        logger.addLog(window, "验证收藏是否成功...");
+
+        // 等待一下让页面状态更新
+        sleep(2000);
+
+        // 首先检查是否出现收藏成功的提示文字
         var successTexts = [
             "收藏成功",
             "已收藏",
             "加入收藏成功",
-            "收藏完成"
+            "收藏完成",
+            "已添加到收藏"
         ];
 
         for (var i = 0; i < successTexts.length; i++) {
             if (textContains(successTexts[i]).findOne(1000)) {
-                logger.addLog(window, "检测到收藏成功提示: " + successTexts[i]);
+                logger.addLog(window, "✅ 检测到收藏成功提示: " + successTexts[i]);
                 return true;
             }
         }
@@ -487,18 +688,33 @@ ProductFavorite.prototype.verifyFavoriteSuccess = function(window) {
 
         for (var j = 0; j < favoritedTexts.length; j++) {
             if (text(favoritedTexts[j]).findOne(1000)) {
-                logger.addLog(window, "检测到收藏状态变化: " + favoritedTexts[j]);
+                logger.addLog(window, "✅ 检测到收藏状态变化: " + favoritedTexts[j]);
                 return true;
             }
         }
 
-        // 简单的成功判断：如果没有明确的失败提示，就认为成功
-        logger.addLog(window, "未检测到明确的收藏结果，假定收藏成功");
-        return true;
+        // 检查是否有收藏失败的提示
+        var failureTexts = [
+            "收藏失败",
+            "网络错误",
+            "请稍后重试",
+            "操作失败"
+        ];
+
+        for (var k = 0; k < failureTexts.length; k++) {
+            if (textContains(failureTexts[k]).findOne(500)) {
+                logger.addLog(window, "❌ 检测到收藏失败提示: " + failureTexts[k]);
+                return false;
+            }
+        }
+
+        // 如果没有明确的成功或失败提示，返回false（更严格的验证）
+        logger.addLog(window, "❌ 未检测到明确的收藏成功标识");
+        return false;
 
     } catch (e) {
         logger.addLog(window, "验证收藏结果失败: " + e.message);
-        return true; // 出错时假定成功
+        return false; // 出错时返回失败
     }
 };
 
@@ -610,6 +826,23 @@ ProductFavorite.prototype.clearClickedPositions = function() {
     this.clickedPositions = [];
     this.currentScrollPosition = 0;
     console.log("已清除所有位置记录");
+};
+
+/**
+ * 清除已收藏商品记录
+ */
+ProductFavorite.prototype.clearFavoritedProducts = function() {
+    this.favoritedProducts = [];
+    this.saveFavoritedProducts();
+    console.log("已清除所有已收藏商品记录");
+};
+
+/**
+ * 获取已收藏商品数量
+ * @returns {number} 已收藏商品数量
+ */
+ProductFavorite.prototype.getFavoritedProductsCount = function() {
+    return this.favoritedProducts.length;
 };
 
 module.exports = ProductFavorite;
