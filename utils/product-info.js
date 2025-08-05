@@ -79,19 +79,207 @@ ProductInfoExtractor.prototype.getShopName = function(window) {
     try {
         logger.addLog(window, "开始获取店铺名称...");
 
-        // 只通过进店按钮和已拼按钮来获取店铺名称
-        var shopName = this.findShopNameNearEnterButton(window);
+        // 使用统一的查找方法，同时检测进店按钮、已拼按钮和店铺保障
+        var shopName = this.findShopNameWithAllMethods(window);
         if (shopName) {
-            logger.addLog(window, "通过进店按钮和已拼按钮找到店铺: " + shopName);
             return shopName;
         }
 
-        logger.addLog(window, "未能通过进店按钮和已拼按钮找到店铺名称，使用默认店铺名称");
+        logger.addLog(window, "未能通过任何方法找到店铺名称，使用默认店铺名称");
         return "未知店铺";
 
     } catch (e) {
         logger.addLog(window, "获取店铺名称失败: " + e.message);
         return "未知店铺";
+    }
+};
+
+/**
+ * 使用所有方法查找店铺名称（统一查找方法）
+ * @param {Object} window 悬浮窗对象
+ * @returns {string|null} 店铺名称
+ */
+ProductInfoExtractor.prototype.findShopNameWithAllMethods = function(window) {
+    try {
+        logger.addLog(window, "使用统一方法查找店铺名称...");
+
+        var maxScrolls = 5;
+        var scrollCount = 0;
+
+        while (scrollCount <= maxScrolls) {
+            // 第一次不滑动，直接查找当前页面
+            if (scrollCount > 0) {
+                logger.addLog(window, "第 " + scrollCount + " 次下滑查找店铺...");
+                scrollWithRandomCoords('down');
+                sleep(8000);
+            }
+
+            var recyclerView = id("pdd").className("android.support.v7.widget.RecyclerView").scrollable(true).findOne(2000);
+            if (!recyclerView) {
+                logger.addLog(window, "未找到RecyclerView");
+                scrollCount++;
+                continue;
+            }
+
+            logger.addLog(window, "找到RecyclerView，开始同时检测所有方法...");
+            var children = recyclerView.children();
+            logger.addLog(window, "RecyclerView子元素数量: " + children.length);
+
+            // 在每个子元素中同时检测所有三种方法
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+
+                // 方法1：通过tv_enter_mall ID查找
+                var shopName = this.checkEnterMallIdInChild(window, child);
+                if (shopName) {
+                    logger.addLog(window, "通过tv_enter_mall ID找到店铺: " + shopName);
+                    return shopName;
+                }
+
+                // 方法2：通过进店按钮+已拼信息查找
+                shopName = this.checkEnterButtonAndYipinInChild(window, child);
+                if (shopName) {
+                    logger.addLog(window, "通过进店+已拼找到店铺: " + shopName);
+                    return shopName;
+                }
+
+                // 方法3：通过店铺保障查找
+                shopName = this.checkShopGuaranteeInChild(window, child);
+                if (shopName) {
+                    logger.addLog(window, "通过店铺保障找到店铺: " + shopName);
+                    return shopName;
+                }
+            }
+
+            scrollCount++;
+        }
+
+        logger.addLog(window, "所有方法都未找到店铺名称");
+        return null;
+    } catch (e) {
+        logger.addLog(window, "统一查找店铺名称失败: " + e.message);
+        return null;
+    }
+};
+
+/**
+ * 通过店铺保障附近查找店铺名称
+ * @param {Object} window 悬浮窗对象
+ * @returns {string|null} 店铺名称
+ */
+ProductInfoExtractor.prototype.findShopNameNearShopGuarantee = function(window) {
+    try {
+        logger.addLog(window, "查找店铺保障附近的店铺名称...");
+
+        var recyclerView = id("pdd").className("android.support.v7.widget.RecyclerView").scrollable(true).findOne(2000);
+        if (!recyclerView) {
+            logger.addLog(window, "未找到RecyclerView");
+            return null;
+        }
+
+        logger.addLog(window, "找到RecyclerView，开始查找店铺保障...");
+        var children = recyclerView.children();
+        logger.addLog(window, "RecyclerView子元素数量: " + children.length);
+
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+
+            // 查找"店铺保障"文本
+            var guaranteeElement = child.findOne(text("店铺保障"));
+            if (!guaranteeElement) {
+                guaranteeElement = child.findOne(textContains("店铺保障"));
+            }
+
+            if (guaranteeElement) {
+                logger.addLog(window, "找到店铺保障，查找同级的店铺名称...");
+
+                // 在这个容器中查找店铺名称
+                var shopName = this.findRealShopNameInContainerForGuarantee(window, child);
+                if (shopName) {
+                    logger.addLog(window, "通过店铺保障成功找到店铺: " + shopName);
+                    return shopName;
+                } else {
+                    logger.addLog(window, "在店铺保障容器中未找到有效店铺名称");
+                }
+            }
+        }
+
+        logger.addLog(window, "未找到店铺保障元素");
+        return null;
+    } catch (e) {
+        logger.addLog(window, "通过店铺保障查找店铺名称失败: " + e.message);
+        return null;
+    }
+};
+
+/**
+ * 在单个子元素中检查tv_enter_mall ID
+ * @param {Object} window 悬浮窗对象
+ * @param {Object} child 子元素
+ * @returns {string|null} 店铺名称
+ */
+ProductInfoExtractor.prototype.checkEnterMallIdInChild = function(window, child) {
+    try {
+        var enterButton = child.findOne(id("tv_enter_mall"));
+        if (enterButton) {
+            logger.addLog(window, "在子元素中找到tv_enter_mall ID");
+            return this.findRealShopNameInContainer(window, child);
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+};
+
+/**
+ * 在单个子元素中检查进店按钮+已拼信息
+ * @param {Object} window 悬浮窗对象
+ * @param {Object} child 子元素
+ * @returns {string|null} 店铺名称
+ */
+ProductInfoExtractor.prototype.checkEnterButtonAndYipinInChild = function(window, child) {
+    try {
+        // 查找进店按钮
+        var enterButton = child.findOne(text("进店"));
+        if (!enterButton) {
+            enterButton = child.findOne(textContains("进店"));
+        }
+
+        if (enterButton) {
+            // 查找已拼信息
+            var yipinElement = child.findOne(textMatches(/已拼\d+件/));
+            if (yipinElement) {
+                logger.addLog(window, "在子元素中找到进店按钮和已拼信息");
+                return this.findRealShopNameInContainer(window, child);
+            }
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+};
+
+/**
+ * 在单个子元素中检查店铺保障
+ * @param {Object} window 悬浮窗对象
+ * @param {Object} child 子元素
+ * @returns {string|null} 店铺名称
+ */
+ProductInfoExtractor.prototype.checkShopGuaranteeInChild = function(window, child) {
+    try {
+        // 查找店铺保障
+        var guaranteeElement = child.findOne(text("店铺保障"));
+        if (!guaranteeElement) {
+            guaranteeElement = child.findOne(textContains("店铺保障"));
+        }
+
+        if (guaranteeElement) {
+            logger.addLog(window, "在子元素中找到店铺保障");
+            return this.findRealShopNameInContainerForGuarantee(window, child);
+        }
+        return null;
+    } catch (e) {
+        return null;
     }
 };
 
@@ -132,6 +320,7 @@ ProductInfoExtractor.prototype.findShopNameNearEnterButton = function(window) {
             scrollCount++;
         }
 
+        logger.addLog(window, "通过进店按钮查找店铺名称失败，未找到有效店铺");
         return null;
     } catch (e) {
         logger.addLog(window, "通过进店按钮查找店铺名称失败: " + e.message);
@@ -274,6 +463,103 @@ ProductInfoExtractor.prototype.findRealShopNameInContainer = function(window, co
         logger.addLog(window, "在容器中查找真正店铺名称失败: " + e.message);
         return null;
     }
+};
+
+/**
+ * 在容器中查找真正的店铺名称（专门用于店铺保障）
+ * @param {Object} window 悬浮窗对象
+ * @param {Object} container 容器元素
+ * @returns {string|null} 店铺名称
+ */
+ProductInfoExtractor.prototype.findRealShopNameInContainerForGuarantee = function(window, container) {
+    try {
+        var allTexts = container.find(className("android.widget.TextView"));
+        var candidates = [];
+
+        logger.addLog(window, "在店铺保障容器中找到 " + allTexts.length + " 个文本元素");
+
+        for (var i = 0; i < allTexts.length; i++) {
+            var textElement = allTexts[i];
+            var text = textElement.text();
+
+            if (text && text.trim().length > 0) {
+                text = text.trim();
+                logger.addLog(window, "检查文本: '" + text + "'");
+
+                // 使用专门用于店铺保障的验证方法
+                if (this.isRealShopNameForGuarantee(text)) {
+                    candidates.push(text);
+                    logger.addLog(window, "候选店铺名称（店铺保障）: " + text);
+                } else {
+                    logger.addLog(window, "文本被排除: '" + text + "'");
+                }
+            }
+        }
+
+        // 返回第一个找到的有效店铺名称
+        if (candidates.length > 0) {
+            logger.addLog(window, "选择店铺名称（店铺保障）: " + candidates[0]);
+            return candidates[0];
+        }
+
+        logger.addLog(window, "在店铺保障容器中未找到有效的候选店铺名称");
+        return null;
+    } catch (e) {
+        logger.addLog(window, "在容器中查找真正店铺名称失败（店铺保障）: " + e.message);
+        return null;
+    }
+};
+
+/**
+ * 验证是否是真正的店铺名称（专门用于店铺保障）
+ * @param {string} text 文本
+ * @returns {boolean} 是否是真正的店铺名称
+ */
+ProductInfoExtractor.prototype.isRealShopNameForGuarantee = function(text) {
+    if (!text || typeof text !== 'string') {
+        return false;
+    }
+
+    text = text.trim();
+
+    // 基本长度检查
+    if (text.length < 2 || text.length > 50) {
+        return false;
+    }
+
+    // 排除明确的无效文本（注意：这里不排除"店铺保障"，因为我们是通过它来定位的）
+    var invalidTexts = [
+        "进店", "进店铺", "店铺首页", "查看店铺", "店铺详情",
+        "更多店铺", "进入店铺", "访问店铺", "店铺主页", "店铺",
+        "分享", "收藏", "客服", "搜索", "首页", "我的", "立即购买",
+        "加入购物车", "现在购买", "马上抢", "去购买"
+        // 注意：这里不包含"店铺保障"
+    ];
+
+    // 精确匹配无效文本
+    for (var i = 0; i < invalidTexts.length; i++) {
+        if (text === invalidTexts[i]) {
+            return false;
+        }
+    }
+
+    // 如果就是"店铺保障"本身，也要排除
+    if (text === "店铺保障") {
+        return false;
+    }
+
+    // 排除包含特定关键词的文本（更严格）
+    var invalidKeywords = [
+        "已拼", "粉丝", "件", "万", "评价", "好评", "优惠", "%",
+        "元", "￥", ".", "立即", "马上", "现在", "去", "加入", "保障"
+    ];
+    for (var i = 0; i < invalidKeywords.length; i++) {
+        if (text.indexOf(invalidKeywords[i]) !== -1) {
+            return false;
+        }
+    }
+
+    return true;
 };
 
 /**

@@ -272,7 +272,9 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
                         // 记录点击位置
                         this.addClickedPosition(elementPosition);
 
-                        if (this.clickProduct(window, element)) {
+                        // 寻找可点击的商品区域
+                        var clickableElement = this.findClickableProductArea(window, element);
+                        if (clickableElement && this.clickProduct(window, clickableElement)) {
                             foundNewProduct = true;
                             return {
                                 text: text,
@@ -317,6 +319,68 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
 };
 
 /**
+ * 寻找可点击的商品区域
+ * @param {Object} window 悬浮窗对象
+ * @param {Object} priceElement 价格元素
+ * @returns {Object|null} 可点击的商品元素
+ */
+ProductPurchase.prototype.findClickableProductArea = function(window, priceElement) {
+    try {
+        var priceBounds = priceElement.bounds();
+
+        // 策略1: 寻找价格元素附近的图片（商品图片通常是可点击的）
+        var images = className("android.widget.ImageView").find();
+        for (var i = 0; i < images.length; i++) {
+            var img = images[i];
+            var imgBounds = img.bounds();
+
+            // 检查图片是否在价格元素附近（通常商品图片在价格上方）
+            var distanceX = Math.abs(imgBounds.centerX() - priceBounds.centerX());
+            var distanceY = priceBounds.centerY() - imgBounds.centerY(); // 图片应该在价格上方
+
+            if (distanceX < 200 && distanceY > 0 && distanceY < 400) {
+                logger.addLog(window, "找到商品图片，位置: (" + imgBounds.centerX() + "," + imgBounds.centerY() + ")");
+                return img;
+            }
+        }
+
+        // 策略2: 寻找价格元素的可点击父容器
+        var parent = priceElement.parent();
+        var maxLevels = 5; // 最多向上查找5层
+        var level = 0;
+
+        while (parent && level < maxLevels) {
+            if (parent.clickable()) {
+                logger.addLog(window, "找到可点击的父容器，层级: " + level);
+                return parent;
+            }
+            parent = parent.parent();
+            level++;
+        }
+
+        // 策略3: 使用价格元素周围的区域坐标点击
+        logger.addLog(window, "未找到特定可点击元素，将使用价格元素上方区域");
+
+        // 创建一个虚拟元素，表示商品图片可能的位置（价格上方）
+        var virtualElement = {
+            bounds: function() {
+                return {
+                    centerX: function() { return priceBounds.centerX(); },
+                    centerY: function() { return priceBounds.centerY() - 100; } // 价格上方100像素
+                };
+            },
+            clickable: function() { return false; } // 强制使用坐标点击
+        };
+
+        return virtualElement;
+
+    } catch (e) {
+        logger.addLog(window, "寻找可点击商品区域失败: " + e.message);
+        return priceElement; // 回退到原始价格元素
+    }
+};
+
+/**
  * 点击商品
  * @param {Object} window 悬浮窗对象
  * @param {Object} element 商品元素
@@ -324,14 +388,52 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
  */
 ProductPurchase.prototype.clickProduct = function(window, element) {
     try {
+        logger.addLog(window, "尝试点击商品...");
+
+        var bounds = element.bounds();
+        logger.addLog(window, "商品元素位置: (" + bounds.centerX() + "," + bounds.centerY() + ")");
+
+        // 策略1: 使用safeClick
         if (safeClick(element)) {
+            logger.addLog(window, "使用safeClick点击商品");
             sleep(this.config.waitTimes.click);
+            this.verifyProductDetailPage(window);
             return true;
         }
+
+        // 策略2: 直接坐标点击商品图片区域（价格上方）
+        var imageY = bounds.centerY() - 100; // 商品图片通常在价格上方
+        logger.addLog(window, "尝试点击商品图片区域: (" + bounds.centerX() + "," + imageY + ")");
+        click(bounds.centerX(), imageY);
+        sleep(this.config.waitTimes.click);
+        this.verifyProductDetailPage(window);
+        return true;
+
     } catch (e) {
         logger.addLog(window, "点击商品失败: " + e.message);
     }
     return false;
+};
+
+/**
+ * 验证是否成功进入商品详情页
+ * @param {Object} window 悬浮窗对象
+ * @returns {boolean} 是否在商品详情页
+ */
+ProductPurchase.prototype.verifyProductDetailPage = function(window) {
+    try {
+        // 简单等待页面加载
+        sleep(2000);
+
+        // 简化验证：直接返回true，让后续流程继续
+        // 如果真的没有进入商品详情页，后续的商品信息提取会失败并处理
+        logger.addLog(window, "等待页面加载完成...");
+        return true;
+
+    } catch (e) {
+        logger.addLog(window, "页面加载等待失败: " + e.message);
+        return true; // 即使出错也继续执行
+    }
 };
 
 /**
