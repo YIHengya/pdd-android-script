@@ -140,7 +140,11 @@ ForbiddenKeywordsChecker.prototype.resetToDefault = function() {
         "个人定制",
         "DIY定制",
         "补差价",
-        "偏远地区"
+        "偏远地区",
+        "教学视频",
+        "视频",
+        "教程"
+
     ];
 };
 
