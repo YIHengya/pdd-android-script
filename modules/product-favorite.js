@@ -556,10 +556,15 @@ ProductFavorite.prototype.favoriteProduct = function(window) {
 
     // 先触发规格选择（参考购买逻辑）
     logger.addLog(window, "先触发规格选择以确保商品有规格信息...");
-    if (this.triggerSpecificationSelection(window)) {
+    var specResult = this.triggerSpecificationSelection(window);
+    if (specResult === false) {
+        // 如果规格选择返回false，可能是因为检测到禁用词，应该终止收藏
+        logger.addLog(window, "❌ 规格选择失败（可能包含禁用词），终止收藏流程");
+        return false;
+    } else if (specResult === true) {
         logger.addLog(window, "规格选择已触发，现在开始收藏");
     } else {
-        logger.addLog(window, "规格选择触发失败，继续尝试收藏");
+        logger.addLog(window, "规格选择状态未知，继续尝试收藏");
     }
 
     // 寻找收藏按钮
@@ -632,6 +637,13 @@ ProductFavorite.prototype.triggerSpecificationSelection = function(window) {
                 if (safeClick(buyBtn)) {
                     waitTimeManager.wait('specification'); // 等待规格选择页面弹出
 
+                    // 检查弹出的规格选择页面是否包含禁止关键词
+                    if (this.keywordsChecker.containsForbiddenKeywords(window, "规格选择页面", 1500)) {
+                        logger.addLog(window, "❌ 规格选择页面包含禁止关键词，取消收藏");
+                        back(); // 返回上一页
+                        return false;
+                    }
+
                     // 检查是否弹出了规格选择页面
                     var specificationPageVisible = this.checkSpecificationPageVisible(window);
                     if (specificationPageVisible) {
@@ -656,6 +668,13 @@ ProductFavorite.prototype.triggerSpecificationSelection = function(window) {
         var screenHeight = device.height;
         click(screenWidth - 100, screenHeight - 150);
         waitTimeManager.wait('specification');
+
+        // 检查弹出的规格选择页面是否包含禁止关键词
+        if (this.keywordsChecker.containsForbiddenKeywords(window, "规格选择页面", 1500)) {
+            logger.addLog(window, "❌ 规格选择页面包含禁止关键词，取消收藏");
+            back(); // 返回上一页
+            return false;
+        }
 
         // 检查是否弹出了规格选择页面
         var specificationPageVisible = this.checkSpecificationPageVisible(window);
