@@ -8,6 +8,7 @@ const ApiClient = require('../utils/api-client.js');
 const ProductInfoExtractor = require('../utils/product-info.js');
 const NavigationHelper = require('../utils/navigation.js');
 const ForbiddenKeywordsChecker = require('../utils/forbidden-keywords-checker.js');
+const { waitTimeManager } = require('../utils/wait-time-manager.js');
 
 /**
  * 商品购买功能构造函数
@@ -108,7 +109,7 @@ ProductPurchase.prototype.execute = function(window, priceRange, userName, purch
                 for (var retryCount = 0; retryCount < maxPurchaseRetries && !purchaseSuccess; retryCount++) {
                     if (retryCount > 0) {
                         logger.addLog(window, "第 " + (retryCount + 1) + " 次尝试购买商品...");
-                        sleep(2000); // 重试前等待
+                        waitTimeManager.wait('retryInterval'); // 重试前等待
                     }
 
                     purchaseSuccess = this.purchaseProduct(window);
@@ -117,7 +118,7 @@ ProductPurchase.prototype.execute = function(window, priceRange, userName, purch
                         logger.addLog(window, "购买失败，准备重试...");
                         // 返回主页重新进入商品页面
                         this.navigationHelper.goToHomePage(window);
-                        sleep(1000);
+                        waitTimeManager.wait('pageStable');
                         // 重新寻找并点击相同商品
                         var retryProduct = this.findProducts(window, priceRange, false);
                         if (!retryProduct || retryProduct.text !== foundProduct.text) {
@@ -140,8 +141,8 @@ ProductPurchase.prototype.execute = function(window, priceRange, userName, purch
 
                     // 如果还有更多商品要购买，稍等一下再继续
                     if (i < purchaseQuantity - 1) {
-                        logger.addLog(window, "等待 3 秒后继续购买下一件商品...");
-                        sleep(3000);
+                        logger.addLog(window, "等待后继续购买下一件商品...");
+                        waitTimeManager.wait('long');
                         logger.addLog(window, "准备寻找下一件不同的商品...");
                     }
                 } else {
@@ -162,7 +163,7 @@ ProductPurchase.prototype.execute = function(window, priceRange, userName, purch
                 logger.addLog(window, "尝试回到页面顶部重新搜索...");
                 for (var k = 0; k < 10; k++) {
                     scrollWithRandomCoords('up');
-                    sleep(500);
+                    waitTimeManager.wait('short');
                 }
                 this.currentScrollPosition = 0;
 
@@ -170,14 +171,14 @@ ProductPurchase.prototype.execute = function(window, priceRange, userName, purch
                 logger.addLog(window, "从顶部开始滚动寻找新商品...");
                 for (var k = 0; k < 8; k++) {
                     scrollWithRandomCoords('down');
-                    sleep(1500);
+                    waitTimeManager.wait('medium');
                 }
 
                 // 策略4: 如果还是找不到，尝试刷新页面
                 if (i > 5) { // 只有在购买了5件以上才尝试刷新
                     logger.addLog(window, "尝试刷新页面获取新商品...");
                     this.navigationHelper.goToHomePage(window);
-                    sleep(2000);
+                    waitTimeManager.wait('pageLoad');
                 }
             }
         }
@@ -221,7 +222,7 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
         logger.addLog(window, "强制滚动寻找新商品...");
         for (var k = 0; k < 3; k++) {
             scrollWithRandomCoords('down');
-            sleep(this.config.waitTimes.scroll);
+            waitTimeManager.wait('scroll');
         }
         this.currentScrollPosition += 3;
     }
@@ -308,7 +309,7 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
                 logger.addLog(window, "尝试回到页面顶部重新搜索...");
                 for (var k = 0; k < 8; k++) {
                     scrollWithRandomCoords('up');
-                    sleep(300);
+                    waitTimeManager.wait('veryShort');
                 }
                 this.currentScrollPosition = 0;
                 logger.addLog(window, "已回到页面顶部，继续搜索...");
@@ -317,7 +318,7 @@ ProductPurchase.prototype.findProducts = function(window, priceRange, forceScrol
 
         logger.addLog(window, "向下滚动寻找更多商品...");
         scrollWithRandomCoords('down');
-        sleep(this.config.waitTimes.scroll);
+        waitTimeManager.wait('scroll');
         scrollCount++;
         this.currentScrollPosition++;
     }
@@ -458,7 +459,7 @@ ProductPurchase.prototype.clickProduct = function(window, element) {
         // 策略1: 使用safeClick
         if (safeClick(element)) {
             logger.addLog(window, "使用safeClick点击商品");
-            sleep(this.config.waitTimes.click);
+            waitTimeManager.wait('click');
             this.verifyProductDetailPage(window);
             return true;
         }
@@ -467,7 +468,7 @@ ProductPurchase.prototype.clickProduct = function(window, element) {
         var imageY = bounds.centerY() - 100; // 商品图片通常在价格上方
         logger.addLog(window, "尝试点击商品图片区域: (" + bounds.centerX() + "," + imageY + ")");
         click(bounds.centerX(), imageY);
-        sleep(this.config.waitTimes.click);
+        waitTimeManager.wait('click');
         this.verifyProductDetailPage(window);
         return true;
 
@@ -485,7 +486,7 @@ ProductPurchase.prototype.clickProduct = function(window, element) {
 ProductPurchase.prototype.verifyProductDetailPage = function(window) {
     try {
         // 简单等待页面加载
-        sleep(2000);
+        waitTimeManager.wait('pageLoad');
 
         // 简化验证：直接返回true，让后续流程继续
         // 如果真的没有进入商品详情页，后续的商品信息提取会失败并处理
@@ -506,7 +507,7 @@ ProductPurchase.prototype.verifyProductDetailPage = function(window) {
 ProductPurchase.prototype.purchaseProduct = function(window) {
     logger.addLog(window, "进入商品详情页，开始购买...");
 
-    sleep(this.config.waitTimes.pageLoad);
+    waitTimeManager.wait('pageLoad');
 
     // 寻找购买按钮
     for (var i = 0; i < this.config.buyButtons.length; i++) {
@@ -515,7 +516,7 @@ ProductPurchase.prototype.purchaseProduct = function(window) {
             logger.addLog(window, "找到购买按钮: " + this.config.buyButtons[i]);
 
             if (safeClick(buyBtn)) {
-                sleep(this.config.waitTimes.pageLoad);
+                waitTimeManager.wait('specification');
 
                 // 检查弹出的规格选择页面是否包含禁止关键词
                 if (this.keywordsChecker.containsForbiddenKeywords(window, "规格选择页面", 1500)) {
@@ -534,7 +535,7 @@ ProductPurchase.prototype.purchaseProduct = function(window) {
     var screenWidth = device.width;
     var screenHeight = device.height;
     click(screenWidth - 100, screenHeight - 150);
-    sleep(this.config.waitTimes.pageLoad);
+    waitTimeManager.wait('specification');
 
     // 检查弹出的规格选择页面是否包含禁止关键词
     if (this.keywordsChecker.containsForbiddenKeywords(window, "规格选择页面", 1500)) {
@@ -554,7 +555,7 @@ ProductPurchase.prototype.purchaseProduct = function(window) {
 ProductPurchase.prototype.handlePayment = function(window) {
     logger.addLog(window, "进入支付流程...");
 
-    sleep(this.config.waitTimes.elementFind);
+    waitTimeManager.wait('elementFind');
 
     // 优先策略：通过"更换支付方式"定位支付按钮
     var changePaymentBtn = textContains("更换支付方式").findOne(1000);
@@ -573,7 +574,7 @@ ProductPurchase.prototype.handlePayment = function(window) {
 
         try {
             click(clickX, clickY);
-            sleep(this.config.waitTimes.payment);
+            waitTimeManager.wait('payment');
             return true;
         } catch (e) {
             logger.addLog(window, "基于'更换支付方式'的点击失败: " + e.message);
@@ -593,7 +594,7 @@ ProductPurchase.prototype.handlePayment = function(window) {
             logger.addLog(window, "自动点击支付按钮进入支付页面...");
 
             if (safeClick(payBtn)) {
-                sleep(this.config.waitTimes.payment);
+                waitTimeManager.wait('payment');
                 return true;
             }
         }
@@ -605,7 +606,7 @@ ProductPurchase.prototype.handlePayment = function(window) {
         logger.addLog(window, "找到支付按钮: " + anyPayBtn.text());
 
         if (safeClick(anyPayBtn)) {
-            sleep(this.config.waitTimes.payment);
+            waitTimeManager.wait('payment');
             return true;
         }
     }
@@ -655,7 +656,7 @@ ProductPurchase.prototype.waitForAlipayAndReturn = function(window) {
             break;
         }
 
-        sleep(500); // 每500ms检查一次
+        waitTimeManager.wait('short'); // 每500ms检查一次
     }
 
     if (orderCompleted) {

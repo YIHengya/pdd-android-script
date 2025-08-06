@@ -4,6 +4,7 @@
 const { PDD_CONFIG } = require('../../config/app-config.js');
 const { safeClick, findAnyElement, isInApp } = require('../common.js');
 const logger = require('../logger.js');
+const { waitTimeManager } = require('../wait-time-manager.js');
 
 /**
  * 待支付页面导航构造函数
@@ -208,13 +209,13 @@ PaymentNavigation.prototype.goToPendingPaymentViaAlternativeRoute = function(win
         if (searchButton) {
             logger.addLog(window, "找到搜索按钮，尝试搜索待支付相关内容");
             if (safeClick(searchButton)) {
-                sleep(1000);
+                waitTimeManager.wait('pageStable');
                 
                 // 输入搜索关键词
                 var searchInput = className("android.widget.EditText").findOne(2000);
                 if (searchInput) {
                     searchInput.setText("我的订单");
-                    sleep(1000);
+                    waitTimeManager.wait('pageStable');
                     
                     // 点击搜索或回车
                     var searchConfirm = text("搜索").findOne(1000);
@@ -225,7 +226,7 @@ PaymentNavigation.prototype.goToPendingPaymentViaAlternativeRoute = function(win
                         searchInput.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_IME_ENTER);
                     }
                     
-                    sleep(this.waitTime);
+                    waitTimeManager.wait('back');
                     
                     // 在搜索结果中查找订单相关内容
                     if (this.findAndClickPendingPayment(window)) {
@@ -269,7 +270,7 @@ PaymentNavigation.prototype.findAndClickPendingPayment = function(window) {
     if (paymentElement) {
         logger.addLog(window, "找到待支付元素: " + paymentElement.text());
         if (safeClick(paymentElement)) {
-            sleep(this.waitTime);
+            waitTimeManager.wait('back');
             if (this.isAtPendingPaymentPage(window)) {
                 logger.addLog(window, "✅ 成功进入待支付页面");
                 return true;

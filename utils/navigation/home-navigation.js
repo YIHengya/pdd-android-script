@@ -4,6 +4,7 @@
 const { PDD_CONFIG } = require('../../config/app-config.js');
 const { safeClick, findAnyElement, isInApp } = require('../common.js');
 const logger = require('../logger.js');
+const { waitTimeManager } = require('../wait-time-manager.js');
 
 /**
  * 主页导航构造函数
@@ -98,7 +99,7 @@ HomeNavigation.prototype.backToHomePage = function(window) {
         
         // 执行返回操作
         back();
-        sleep(this.waitTime);
+        waitTimeManager.wait('back');
         
         // 检查是否回到主页
         if (this.isAtHomePage(window)) {
@@ -134,11 +135,11 @@ HomeNavigation.prototype.restartApp = function(window) {
         this.closeApp(window);
         
         // 等待一段时间
-        sleep(3000);
+        waitTimeManager.wait('long');
         
         // 重新启动应用
         if (this.launchApp(window)) {
-            sleep(this.waitTime);
+            waitTimeManager.wait('back');
             if (this.isAtHomePage(window)) {
                 logger.addLog(window, "✅ 重启应用成功，已回到主页");
                 return true;
@@ -332,12 +333,12 @@ HomeNavigation.prototype.launchApp = function(window) {
         }
 
         home();
-        sleep(2000);
+        waitTimeManager.wait('pageLoad');
 
         // 直接启动拼多多（只尝试已知存在的包名）
         logger.addLog(window, "尝试启动包名: com.xunmeng.pinduoduo");
         app.launchPackage("com.xunmeng.pinduoduo");
-        sleep(this.config.waitTimes.appLaunch);
+        waitTimeManager.wait('appLaunch');
 
         // 使用多种方式验证启动成功
         currentPkg = this.getCurrentPackageWithRetry(5, 800);
@@ -380,7 +381,7 @@ HomeNavigation.prototype.launchApp = function(window) {
             });
             context.startActivity(intent);
 
-            sleep(this.config.waitTimes.appLaunch);
+            waitTimeManager.wait('appLaunch');
             currentPkg = this.getCurrentPackageWithRetry(5, 800);
             logger.addLog(window, "Intent启动后当前应用: " + (currentPkg || "null"));
 

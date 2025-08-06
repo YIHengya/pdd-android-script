@@ -4,6 +4,7 @@
 const { PDD_CONFIG } = require('../../config/app-config.js');
 const { safeClick, findAnyElement, isInApp } = require('../common.js');
 const logger = require('../logger.js');
+const { waitTimeManager } = require('../wait-time-manager.js');
 
 /**
  * 个人中心导航构造函数
@@ -31,7 +32,7 @@ PersonalNavigation.prototype.goToPersonalCenter = function(window) {
     var HomeNavigation = require('./home-navigation.js');
     var homeNav = new HomeNavigation();
     if (homeNav.goToHomePage(window)) {
-        sleep(this.waitTime);
+        waitTimeManager.wait('back');
         if (this.clickPersonalCenterButton(window)) {
             return true;
         }
@@ -39,7 +40,7 @@ PersonalNavigation.prototype.goToPersonalCenter = function(window) {
     
     // 方法3: 重启应用后进入个人中心
     if (homeNav.restartApp(window)) {
-        sleep(this.waitTime);
+        waitTimeManager.wait('back');
         if (this.clickPersonalCenterButton(window)) {
             return true;
         }
@@ -79,7 +80,7 @@ PersonalNavigation.prototype.clickPersonalCenterButton = function(window) {
     if (personalButton) {
         logger.addLog(window, "找到个人中心按钮: " + personalButton.text());
         if (safeClick(personalButton)) {
-            sleep(this.waitTime);
+            waitTimeManager.wait('back');
             if (this.isAtPersonalCenter(window)) {
                 logger.addLog(window, "✅ 成功进入个人中心");
                 return true;
@@ -127,7 +128,7 @@ PersonalNavigation.prototype.isAtPersonalCenter = function(window) {
             logger.addLog(window, "向上滚动第 " + (i + 1) + " 次...");
             // 向上滑动
             swipe(device.width / 2, device.height / 3, device.width / 2, device.height * 2 / 3, 300);
-            sleep(1000); // 增加等待时间，更像真实用户
+            waitTimeManager.wait('pageStable'); // 增加等待时间，更像真实用户
 
             // 每次滚动后立即检测个人中心标识
             if (checkPersonalIndicators()) {
@@ -157,7 +158,7 @@ PersonalNavigation.prototype.scrollToTop = function(window, maxScrolls) {
         try {
             // 向上滑动到顶部
             swipe(device.width / 2, device.height / 3, device.width / 2, device.height * 2 / 3, 300);
-            sleep(500);
+            waitTimeManager.wait('short');
         } catch (e) {
             logger.addLog(window, "滚动操作失败: " + e.message);
             break;
@@ -178,11 +179,11 @@ PersonalNavigation.prototype.emergencyReset = function(window) {
     try {
         // 1. 强制回到桌面
         home();
-        sleep(2000);
+        waitTimeManager.wait('pageLoad');
 
         // 2. 清理最近任务
         recents();
-        sleep(1000);
+        waitTimeManager.wait('pageStable');
 
         // 3. 尝试清除拼多多任务
         var clearAllBtn = text("清除全部").findOne(2000);
@@ -191,12 +192,12 @@ PersonalNavigation.prototype.emergencyReset = function(window) {
         }
         if (clearAllBtn) {
             safeClick(clearAllBtn);
-            sleep(1000);
+            waitTimeManager.wait('pageStable');
         }
 
         // 4. 回到桌面
         home();
-        sleep(2000);
+        waitTimeManager.wait('pageLoad');
 
         // 5. 重新启动应用
         var HomeNavigation = require('./home-navigation.js');

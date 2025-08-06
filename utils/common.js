@@ -200,6 +200,7 @@ function parsePrice(priceText) {
 /**
  * 等待指定时间
  * @param {number} ms 等待时间（毫秒）
+ * @deprecated 建议使用 waitTimeManager.wait() 替代
  */
 function wait(ms) {
     sleep(ms);

@@ -4,6 +4,7 @@
 const { PDD_CONFIG } = require('../config/app-config.js');
 const logger = require('../utils/logger.js');
 const { safeClick } = require('../utils/common.js');
+const { waitTimeManager } = require('../utils/wait-time-manager.js');
 
 /**
  * 用户信息管理构造函数
@@ -114,11 +115,11 @@ UserInfo.prototype.getCurrentPackageWithRetry = function(maxRetries, retryDelay)
             }
 
             if (i < maxRetries - 1) {
-                sleep(retryDelay);
+                waitTimeManager.wait(retryDelay);
             }
         } catch (e) {
             if (i < maxRetries - 1) {
-                sleep(retryDelay);
+                waitTimeManager.wait(retryDelay);
             }
         }
     }
@@ -172,14 +173,14 @@ UserInfo.prototype.ensureInPDDApp = function(window) {
         logger.addLog(window, "正在启动拼多多APP...");
 
         home();
-        sleep(2000);
+        waitTimeManager.wait('pageLoad');
 
         // 尝试使用包名启动
         for (var i = 0; i < this.config.packageNames.length; i++) {
             try {
                 logger.addLog(window, "尝试包名: " + this.config.packageNames[i]);
                 app.launchPackage(this.config.packageNames[i]);
-                sleep(this.config.waitTimes.appLaunch);
+                waitTimeManager.wait('appLaunch');
 
                 // 使用重试机制获取当前包名
                 currentPkg = this.getCurrentPackageWithRetry(5, 800);
@@ -200,7 +201,7 @@ UserInfo.prototype.ensureInPDDApp = function(window) {
             try {
                 logger.addLog(window, "尝试应用名: " + this.config.appNames[i]);
                 app.launchApp(this.config.appNames[i]);
-                sleep(this.config.waitTimes.appLaunch);
+                waitTimeManager.wait('appLaunch');
 
                 // 使用重试机制获取当前包名
                 currentPkg = this.getCurrentPackageWithRetry(5, 800);
@@ -225,7 +226,7 @@ UserInfo.prototype.ensureInPDDApp = function(window) {
             intent.setPackage("com.xunmeng.pinduoduo");
             context.startActivity(intent);
 
-            sleep(this.config.waitTimes.appLaunch);
+            waitTimeManager.wait('appLaunch');
             currentPkg = this.getCurrentPackageWithRetry(5, 800);
             logger.addLog(window, "Intent启动后当前应用: " + (currentPkg || "null"));
 
@@ -254,7 +255,7 @@ UserInfo.prototype.navigateToProfile = function(window) {
         logger.addLog(window, "正在进入个人中心...");
 
         // 等待页面加载
-        sleep(this.config.waitTimes.pageLoad);
+        waitTimeManager.wait('pageLoad');
 
         // 寻找"我的"按钮
         var profileButtons = [
@@ -269,7 +270,7 @@ UserInfo.prototype.navigateToProfile = function(window) {
             if (btn) {
                 logger.addLog(window, "找到按钮: " + profileButtons[i]);
                 if (safeClick(btn)) {
-                    sleep(this.config.waitTimes.pageLoad);
+                    waitTimeManager.wait('pageLoad');
                     logger.addLog(window, "成功进入个人中心");
                     return true;
                 }
@@ -280,7 +281,7 @@ UserInfo.prototype.navigateToProfile = function(window) {
         var bottomNavs = textContains("我的").find();
         for (var i = 0; i < bottomNavs.length; i++) {
             if (safeClick(bottomNavs[i])) {
-                sleep(this.config.waitTimes.pageLoad);
+                waitTimeManager.wait('pageLoad');
                 logger.addLog(window, "通过底部导航进入个人中心");
                 return true;
             }
@@ -316,7 +317,7 @@ UserInfo.prototype.navigateToAddressPage = function(window) {
             if (btn) {
                 logger.addLog(window, "找到地址按钮: " + addressButtons[i]);
                 if (safeClick(btn)) {
-                    sleep(this.config.waitTimes.pageLoad);
+                    waitTimeManager.wait('pageLoad');
                     logger.addLog(window, "成功进入收货地址页面");
                     return true;
                 }
@@ -328,7 +329,7 @@ UserInfo.prototype.navigateToAddressPage = function(window) {
         if (addressContains) {
             logger.addLog(window, "找到包含'地址'的按钮");
             if (safeClick(addressContains)) {
-                sleep(this.config.waitTimes.pageLoad);
+                waitTimeManager.wait('pageLoad');
                 logger.addLog(window, "成功进入收货地址页面");
                 return true;
             }
@@ -358,7 +359,7 @@ UserInfo.prototype.extractUserInfo = function(window) {
         };
 
         // 等待页面加载
-        sleep(2000);
+        waitTimeManager.wait('pageLoad');
 
         // 尝试获取用户昵称/姓名
         var nameSelectors = [
@@ -439,7 +440,7 @@ UserInfo.prototype.extractRecipientInfo = function(window) {
         };
 
         // 等待页面加载
-        sleep(2000);
+        waitTimeManager.wait('pageLoad');
 
         // 使用您提供的方法查找默认地址
         logger.addLog(window, "查找默认地址...");

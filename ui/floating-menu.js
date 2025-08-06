@@ -3,6 +3,7 @@
 
 const logger = require('../utils/logger.js');
 const { GlobalStopManager } = require('../utils/common.js');
+const { waitTimeManager } = require('../utils/wait-time-manager.js');
 
 /**
  * 悬浮菜单构造函数
@@ -22,7 +23,7 @@ function FloatingMenu() {
  */
 FloatingMenu.prototype.create = function() {
     this.menuWindow = floaty.rawWindow(
-        <frame id="menuFrame" w="280dp" h="360dp" visibility="gone">
+        <frame id="menuFrame" w="280dp" h="450dp" visibility="gone">
             <card cardCornerRadius="10dp" cardElevation="8dp" margin="5dp" cardBackgroundColor="#f8f9fa">
                 <vertical padding="15dp">
                     <horizontal margin="5dp" gravity="center_vertical">
@@ -112,6 +113,33 @@ FloatingMenu.prototype.create = function() {
                         </horizontal>
                     </vertical>
 
+                    <vertical margin="5dp">
+                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                            <text text="等待倍率:" textColor="#333333" textSize="12sp" w="60dp"/>
+                            <text id="speedDisplay" text="正常模式 (1.0x)" textColor="#333333" textSize="12sp" textStyle="bold" layout_weight="1"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="速度:" textColor="#666666" textSize="11sp" w="35dp"/>
+                            <seekbar id="speedSeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
+                                     max="49" progress="9" progressTint="#FF9800" thumbTint="#FF9800"/>
+                            <text id="speedText" text="1.0x" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
+                        </horizontal>
+
+                        <horizontal gravity="center" margin="0 0 5dp 0">
+                            <button id="speedDebugBtn" text="调试" textColor="#ffffff" bg="#9E9E9E"
+                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
+                            <button id="speedSlowBtn" text="慢速" textColor="#ffffff" bg="#FF5722"
+                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
+                            <button id="speedNormalBtn" text="正常" textColor="#ffffff" bg="#4CAF50"
+                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
+                            <button id="speedFastBtn" text="快速" textColor="#ffffff" bg="#2196F3"
+                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
+                            <button id="speedTurboBtn" text="极速" textColor="#ffffff" bg="#9C27B0"
+                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
+                        </horizontal>
+                    </vertical>
+
                     <horizontal margin="5dp" gravity="center">
                         <button id="userInfoBtn" text="更新用户信息" textColor="#ffffff" bg="#4CAF50"
                                 w="100dp" h="35dp" margin="2dp" textSize="10sp"/>
@@ -155,6 +183,8 @@ FloatingMenu.prototype.create = function() {
         self.initializePriceDisplay();
         // 初始化购买数量显示
         self.initializeQuantityDisplay();
+        // 初始化等待时间倍率显示
+        self.initSpeedDisplay();
         // 初始化模式按钮状态
         self.updateModeButtons();
     }, 100);
@@ -283,6 +313,17 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             }
         });
 
+        // 等待时间倍率滑动条事件处理
+        this.menuWindow.speedSeekbar.setOnSeekBarChangeListener({
+            onProgressChanged: function(seekBar, progress, fromUser) {
+                if (fromUser) {
+                    // 将进度值转换为倍率（0-49对应0.1-5.0）
+                    var multiplier = 0.1 + (progress / 49.0) * 4.9;
+                    self.updateSpeedMultiplier(multiplier);
+                }
+            }
+        });
+
         // 购买模式已固定，无需按钮事件
 
         // 更新用户信息按钮
@@ -339,6 +380,27 @@ FloatingMenu.prototype.setupEventHandlers = function() {
         // 收藏模式按钮事件处理
         this.menuWindow.favoriteModeBtn.click(function() {
             self.switchToMode('favorite');
+        });
+
+        // 等待时间倍率预设按钮事件处理
+        this.menuWindow.speedDebugBtn.click(function() {
+            self.setSpeedPreset('debug');
+        });
+
+        this.menuWindow.speedSlowBtn.click(function() {
+            self.setSpeedPreset('slow');
+        });
+
+        this.menuWindow.speedNormalBtn.click(function() {
+            self.setSpeedPreset('normal');
+        });
+
+        this.menuWindow.speedFastBtn.click(function() {
+            self.setSpeedPreset('fast');
+        });
+
+        this.menuWindow.speedTurboBtn.click(function() {
+            self.setSpeedPreset('turbo');
         });
 
     } catch (e) {
@@ -730,6 +792,54 @@ FloatingMenu.prototype.close = function() {
     if (this.menuWindow) {
         this.menuWindow.close();
     }
+};
+
+/**
+ * 更新等待时间倍率显示
+ * @param {number} multiplier 倍率值
+ */
+FloatingMenu.prototype.updateSpeedMultiplier = function(multiplier) {
+    if (!this.menuWindow) return;
+
+    // 设置等待时间管理器的倍率
+    waitTimeManager.setSpeedMultiplier(multiplier);
+
+    ui.run(() => {
+        try {
+            // 更新倍率文本显示
+            this.menuWindow.speedText.setText(multiplier.toFixed(1) + "x");
+
+            // 更新模式描述
+            var modeDescription = waitTimeManager.getSpeedModeDescription();
+            this.menuWindow.speedDisplay.setText(modeDescription + " (" + multiplier.toFixed(1) + "x)");
+
+            // 更新滑动条位置
+            var progress = Math.round((multiplier - 0.1) / 4.9 * 49);
+            this.menuWindow.speedSeekbar.setProgress(progress);
+
+        } catch (e) {
+            console.error("更新等待时间倍率显示失败: " + e.message);
+        }
+    });
+};
+
+/**
+ * 设置等待时间倍率预设
+ * @param {string} preset 预设模式
+ */
+FloatingMenu.prototype.setSpeedPreset = function(preset) {
+    waitTimeManager.setPresetMode(preset);
+    var multiplier = waitTimeManager.getSpeedMultiplier();
+    this.updateSpeedMultiplier(multiplier);
+    this.addLog("等待时间已设置为: " + waitTimeManager.getSpeedModeDescription());
+};
+
+/**
+ * 初始化等待时间倍率显示
+ */
+FloatingMenu.prototype.initSpeedDisplay = function() {
+    var currentMultiplier = waitTimeManager.getSpeedMultiplier();
+    this.updateSpeedMultiplier(currentMultiplier);
 };
 
 module.exports = FloatingMenu;

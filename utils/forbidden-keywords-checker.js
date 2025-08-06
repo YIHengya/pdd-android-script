@@ -2,6 +2,7 @@
 // 提供统一的关键词检测功能，避免代码重复
 
 const logger = require('./logger.js');
+const { waitTimeManager } = require('./wait-time-manager.js');
 
 /**
  * 禁止关键词检测器构造函数
@@ -45,7 +46,7 @@ ForbiddenKeywordsChecker.prototype.containsForbiddenKeywords = function(window, 
         
         // 如果指定了等待时间，先等待页面加载
         if (waitTime > 0) {
-            sleep(waitTime);
+            waitTimeManager.wait(waitTime);
         }
         
         // 获取页面所有文本元素

@@ -104,7 +104,7 @@ debugWindow.launchBtn.click(function() {
         try {
             addLog("尝试启动包名: " + knownPackages[i]);
             app.launchPackage(knownPackages[i]);
-            sleep(3000);
+            waitTimeManager.wait('long');
             
             var currentPkg = currentPackage();
             addLog("启动后当前应用: " + currentPkg);
@@ -124,7 +124,7 @@ debugWindow.launchBtn.click(function() {
         try {
             addLog("尝试启动应用名: " + appNames[j]);
             app.launchApp(appNames[j]);
-            sleep(3000);
+            waitTimeManager.wait('long');
             
             var currentPkg = currentPackage();
             addLog("启动后当前应用: " + currentPkg);
@@ -149,8 +149,8 @@ debugWindow.launchBtn.click(function() {
         intent.addCategory("android.intent.category.LAUNCHER");
         intent.setPackage("com.xunmeng.pinduoduo");
         context.startActivity(intent);
-        
-        sleep(3000);
+
+        waitTimeManager.wait('long');
         var currentPkg = currentPackage();
         addLog("Intent启动后当前应用: " + currentPkg);
         
@@ -177,6 +177,7 @@ addLog("请先点击'检测应用'按钮");
 
 // 导入全局停止管理器
 const { GlobalStopManager } = require('./utils/common.js');
+const { waitTimeManager } = require('./utils/wait-time-manager.js');
 
 // 保持脚本运行
 var keepAliveInterval = setInterval(function() {

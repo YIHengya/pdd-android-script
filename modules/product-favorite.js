@@ -8,6 +8,7 @@ const ApiClient = require('../utils/api-client.js');
 const ProductInfoExtractor = require('../utils/product-info.js');
 const NavigationHelper = require('../utils/navigation.js');
 const ForbiddenKeywordsChecker = require('../utils/forbidden-keywords-checker.js');
+const { waitTimeManager } = require('../utils/wait-time-manager.js');
 
 /**
  * 商品收藏构造函数
@@ -127,12 +128,12 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
 
                 // 返回主页准备收藏下一个商品
                 this.navigationHelper.goToHomePage(window);
-                sleep(1000);
+                waitTimeManager.wait('pageStable');
             } else {
                 logger.addLog(window, "❌ 第 " + (i + 1) + " 件商品收藏失败");
                 // 收藏失败时返回主页重试
                 this.navigationHelper.goToHomePage(window);
-                sleep(1000);
+                waitTimeManager.wait('pageStable');
             }
         }
 
@@ -179,7 +180,7 @@ ProductFavorite.prototype.findProducts = function(window, priceRange, forceScrol
         logger.addLog(window, "强制滚动寻找新商品...");
         for (var k = 0; k < 3; k++) {
             scrollWithRandomCoords('down');
-            sleep(this.config.waitTimes.scroll);
+            waitTimeManager.wait('scroll');
         }
         this.currentScrollPosition += 3;
     }
@@ -264,7 +265,7 @@ ProductFavorite.prototype.findProducts = function(window, priceRange, forceScrol
         // 滚动寻找更多商品
         logger.addLog(window, "滚动寻找更多商品...");
         scrollWithRandomCoords('down');
-        sleep(this.config.waitTimes.scroll);
+        waitTimeManager.wait('scroll');
         scrollCount++;
         this.currentScrollPosition++;
     }
@@ -433,7 +434,7 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
         // 策略1: 使用safeClick点击元素
         logger.addLog(window, "使用safeClick点击商品元素");
         if (safeClick(element)) {
-            sleep(this.config.waitTimes.click);
+            waitTimeManager.wait('click');
 
             // 验证是否成功进入商品详情页
             if (this.verifyProductDetailPage(window)) {
@@ -449,7 +450,7 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
         // 策略2: 直接坐标点击元素中心
         logger.addLog(window, "尝试坐标点击元素中心: (" + bounds.centerX() + "," + bounds.centerY() + ")");
         click(bounds.centerX(), bounds.centerY());
-        sleep(this.config.waitTimes.click);
+        waitTimeManager.wait('click');
 
         // 验证是否成功进入商品详情页
         if (this.verifyProductDetailPage(window)) {
@@ -463,7 +464,7 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
         var imageY = bounds.centerY() - 80;
         logger.addLog(window, "尝试点击元素上方区域: (" + bounds.centerX() + "," + imageY + ")");
         click(bounds.centerX(), imageY);
-        sleep(this.config.waitTimes.click);
+        waitTimeManager.wait('click');
 
         // 验证是否成功进入商品详情页
         if (this.verifyProductDetailPage(window)) {
@@ -488,7 +489,7 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
 ProductFavorite.prototype.verifyProductDetailPage = function(window) {
     try {
         logger.addLog(window, "验证是否进入商品详情页...");
-        sleep(3000); // 等待页面加载
+        waitTimeManager.wait('long'); // 等待页面加载
 
         // 检查商品详情页的特征元素
         var detailPageIndicators = [
@@ -545,7 +546,7 @@ ProductFavorite.prototype.verifyProductDetailPage = function(window) {
 ProductFavorite.prototype.favoriteProduct = function(window) {
     logger.addLog(window, "进入商品详情页，开始收藏...");
 
-    sleep(this.config.waitTimes.pageLoad);
+    waitTimeManager.wait('pageLoad');
 
     // 首先检查商品是否已经收藏过
     if (this.isProductAlreadyFavorited(window)) {
@@ -568,7 +569,7 @@ ProductFavorite.prototype.favoriteProduct = function(window) {
             logger.addLog(window, "找到收藏按钮: " + this.favoriteButtons[i]);
 
             if (safeClick(favoriteBtn)) {
-                sleep(1500);
+                waitTimeManager.wait('favorite');
 
                 // 检查是否出现收藏成功的提示或者按钮状态变化
                 if (this.verifyFavoriteSuccess(window)) {
@@ -588,7 +589,7 @@ ProductFavorite.prototype.favoriteProduct = function(window) {
         var heartBtn = heartButtons[j];
         if (safeClick(heartBtn)) {
             logger.addLog(window, "点击心形收藏按钮");
-            sleep(1500);
+            waitTimeManager.wait('favorite');
 
             if (this.verifyFavoriteSuccess(window)) {
                 logger.addLog(window, "✅ 商品收藏成功");
@@ -629,7 +630,7 @@ ProductFavorite.prototype.triggerSpecificationSelection = function(window) {
                 logger.addLog(window, "找到购买按钮: " + buyButtons[i] + "，点击触发规格选择");
 
                 if (safeClick(buyBtn)) {
-                    sleep(2000); // 等待规格选择页面弹出
+                    waitTimeManager.wait('specification'); // 等待规格选择页面弹出
 
                     // 检查是否弹出了规格选择页面
                     var specificationPageVisible = this.checkSpecificationPageVisible(window);
@@ -642,7 +643,7 @@ ProductFavorite.prototype.triggerSpecificationSelection = function(window) {
                         logger.addLog(window, "未检测到规格选择页面，可能直接进入了支付流程");
                         // 如果直接进入支付流程，返回上一页
                         back();
-                        sleep(1000);
+                        waitTimeManager.wait('pageStable');
                         return true;
                     }
                 }
@@ -654,7 +655,7 @@ ProductFavorite.prototype.triggerSpecificationSelection = function(window) {
         var screenWidth = device.width;
         var screenHeight = device.height;
         click(screenWidth - 100, screenHeight - 150);
-        sleep(2000);
+        waitTimeManager.wait('specification');
 
         // 检查是否弹出了规格选择页面
         var specificationPageVisible = this.checkSpecificationPageVisible(window);
@@ -666,7 +667,7 @@ ProductFavorite.prototype.triggerSpecificationSelection = function(window) {
             logger.addLog(window, "未检测到规格选择页面，可能直接进入了支付流程");
             // 如果直接进入支付流程，返回上一页
             back();
-            sleep(1000);
+            waitTimeManager.wait('pageStable');
             return true;
         }
 
@@ -726,7 +727,7 @@ ProductFavorite.prototype.closeSpecificationPage = function(window) {
 
         // 使用返回键关闭规格选择页面（最安全的方式）
         back();
-        sleep(1500); // 等待页面关闭
+        waitTimeManager.wait('medium'); // 等待页面关闭
 
         logger.addLog(window, "规格选择页面已关闭");
     } catch (e) {
@@ -744,7 +745,7 @@ ProductFavorite.prototype.verifyFavoriteSuccess = function(window) {
         logger.addLog(window, "验证收藏是否成功...");
 
         // 等待一下让页面状态更新
-        sleep(2000);
+        waitTimeManager.wait('verification');
 
         // 首先检查是否出现收藏成功的提示文字
         var successTexts = [

@@ -5,6 +5,7 @@ const NavigationHelper = require('../utils/navigation.js');
 const { PDD_CONFIG } = require('../config/app-config.js');
 const { safeClick, findAnyElement, isInApp, GlobalStopManager } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
+const { waitTimeManager } = require('../utils/wait-time-manager.js');
 
 /**
  * 自动支付模块构造函数
@@ -202,7 +203,7 @@ AutoPayment.prototype.scrollToFindOrders = function(window) {
         try {
             // 向下滑动
             swipe(device.width / 2, device.height * 2 / 3, device.width / 2, device.height / 3, 500);
-            sleep(1000);
+            waitTimeManager.wait('pageStable');
             
             logger.addLog(window, "滚动第 " + (i + 1) + " 次");
         } catch (e) {
