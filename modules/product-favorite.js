@@ -597,16 +597,7 @@ ProductFavorite.prototype.favoriteProduct = function(window) {
         }
     }
 
-    // 尝试右上角区域点击（收藏按钮通常在右上角）
-    logger.addLog(window, "尝试点击右上角收藏区域...");
-    var screenWidth = device.width;
-    click(screenWidth - 80, 150);
-    sleep(1500);
 
-    if (this.verifyFavoriteSuccess(window)) {
-        logger.addLog(window, "✅ 商品收藏成功");
-        return true;
-    }
 
     logger.addLog(window, "❌ 未找到收藏按钮或收藏失败");
     return false;
