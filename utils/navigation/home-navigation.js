@@ -483,7 +483,7 @@ HomeNavigation.prototype.isAtHomePage = function(window) {
     }
 
     // 如果不在主页，适度向上滚动并检测（减少滚动次数避免被识别为机器人）
-    var maxScrolls = 2;
+    var maxScrolls = 1;
     for (var i = 0; i < maxScrolls; i++) {
         try {
             logger.addLog(window, "向上滚动第 " + (i + 1) + " 次...");

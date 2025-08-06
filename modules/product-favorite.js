@@ -4,6 +4,8 @@
 const { PDD_CONFIG } = require('../config/app-config.js');
 const { parsePrice, safeClick, scrollWithRandomCoords, GlobalStopManager } = require('../utils/common.js');
 const logger = require('../utils/logger.js');
+const ApiClient = require('../utils/api-client.js');
+const ProductInfoExtractor = require('../utils/product-info.js');
 const NavigationHelper = require('../utils/navigation.js');
 const ForbiddenKeywordsChecker = require('../utils/forbidden-keywords-checker.js');
 
@@ -12,6 +14,8 @@ const ForbiddenKeywordsChecker = require('../utils/forbidden-keywords-checker.js
  */
 function ProductFavorite() {
     this.config = PDD_CONFIG;
+    this.apiClient = new ApiClient();
+    this.productInfoExtractor = new ProductInfoExtractor();
     this.navigationHelper = new NavigationHelper();
     this.keywordsChecker = new ForbiddenKeywordsChecker();
     
@@ -26,13 +30,9 @@ function ProductFavorite() {
         "♥"
     ];
     
-    // 已收藏商品记录（避免重复收藏）
-    this.favoritedProducts = [];
+    // 点击位置记录（避免重复点击同一位置）
     this.clickedPositions = [];
     this.currentScrollPosition = 0;
-    
-    // 加载已收藏商品记录
-    this.loadFavoritedProducts();
 }
 
 /**
@@ -97,16 +97,26 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
 
             logger.addLog(window, "找到商品信息 - 文本: '" + foundProduct.text + "', 价格: " + foundProduct.price + " 元");
 
-            // 检查是否已经收藏过这个商品
-            if (this.isProductAlreadyFavorited(foundProduct.text)) {
-                logger.addLog(window, "商品已收藏过，跳过: " + foundProduct.text);
-                // 返回主页继续寻找其他商品
+            logger.addLog(window, "✅ 找到商品，开始收藏前的权限检查");
+
+            // 提取商品信息并检查收藏权限
+            var productInfo = this.productInfoExtractor.extractProductInfo(window, userName);
+            if (!productInfo) {
+                logger.addLog(window, "无法获取商品信息，返回主页继续寻找");
                 this.navigationHelper.goToHomePage(window);
-                sleep(1000);
                 continue;
             }
 
-            logger.addLog(window, "✅ 找到新商品，开始收藏流程");
+            // 检查是否可以收藏（使用与购买相同的权限检查）
+            var checkResult = this.apiClient.checkOrderPermissionWithRetry(window, productInfo);
+            if (!checkResult.canOrder) {
+                logger.addLog(window, "不能收藏此商品: " + checkResult.message);
+                logger.addLog(window, "返回主页继续寻找其他商品");
+                this.navigationHelper.goToHomePage(window);
+                continue;
+            }
+
+            logger.addLog(window, "✅ 权限检查通过，开始收藏流程");
 
             // 收藏商品
             var favoriteSuccess = this.favoriteProduct(window);
@@ -115,16 +125,12 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
                 successCount++;
                 logger.addLog(window, "✅ 第 " + (i + 1) + " 件商品收藏成功");
 
-                // 只有真正收藏成功才记录商品
-                this.addFavoritedProduct(foundProduct.text, foundProduct.price);
-                logger.addLog(window, "已记录收藏商品到本地存储");
-
                 // 返回主页准备收藏下一个商品
                 this.navigationHelper.goToHomePage(window);
                 sleep(1000);
             } else {
                 logger.addLog(window, "❌ 第 " + (i + 1) + " 件商品收藏失败");
-                // 收藏失败时不记录商品，返回主页重试
+                // 收藏失败时返回主页重试
                 this.navigationHelper.goToHomePage(window);
                 sleep(1000);
             }
@@ -220,18 +226,30 @@ ProductFavorite.prototype.findProducts = function(window, priceRange, forceScrol
                         }
 
                         logger.addLog(window, "找到新商品: " + text + " (价格: " + price + " 元)");
+                        logger.addLog(window, "价格元素位置: (" + elementPosition.centerX + "," + elementPosition.centerY + ")");
 
                         // 记录点击位置
                         this.addClickedPosition(elementPosition);
 
                         // 寻找可点击的商品区域
+                        logger.addLog(window, "开始寻找可点击的商品区域...");
                         var clickableElement = this.findClickableProductArea(window, element);
-                        if (clickableElement && this.clickProduct(window, clickableElement)) {
-                            foundNewProduct = true;
-                            return {
-                                text: text,
-                                price: price
-                            };
+
+                        if (clickableElement) {
+                            var clickableBounds = clickableElement.bounds();
+                            logger.addLog(window, "找到可点击元素，位置: (" + clickableBounds.centerX() + "," + clickableBounds.centerY() + ")");
+
+                            if (this.clickProduct(window, clickableElement)) {
+                                foundNewProduct = true;
+                                return {
+                                    text: text,
+                                    price: price
+                                };
+                            } else {
+                                logger.addLog(window, "点击商品失败，继续寻找其他商品");
+                            }
+                        } else {
+                            logger.addLog(window, "未找到可点击的商品区域，跳过此商品");
                         }
                     }
                     break;
@@ -294,25 +312,47 @@ ProductFavorite.prototype.isSearchBoxOrNonProductArea = function(element, text) 
 ProductFavorite.prototype.findClickableProductArea = function(window, priceElement) {
     try {
         var priceBounds = priceElement.bounds();
-        
-        // 策略1: 寻找价格元素的父容器
-        var parent = priceElement.parent();
-        if (parent && parent.clickable()) {
-            logger.addLog(window, "找到可点击的父容器");
-            return parent;
+        logger.addLog(window, "价格元素位置: (" + priceBounds.centerX() + "," + priceBounds.centerY() + ")");
+
+        // 策略1: 向上查找父容器，寻找可点击的商品容器
+        var currentElement = priceElement;
+        var maxLevels = 5; // 最多向上查找5层
+
+        for (var level = 0; level < maxLevels; level++) {
+            var parent = currentElement.parent();
+            if (!parent) break;
+
+            var parentBounds = parent.bounds();
+
+            // 检查父容器是否是合理的商品容器（不能太大，避免选中整个页面）
+            var parentWidth = parentBounds.right - parentBounds.left;
+            var parentHeight = parentBounds.bottom - parentBounds.top;
+            var screenWidth = device.width;
+            var screenHeight = device.height;
+
+            // 如果父容器大小合理且可点击，使用它
+            if (parent.clickable() &&
+                parentWidth < screenWidth * 0.8 &&
+                parentHeight < screenHeight * 0.4) {
+                logger.addLog(window, "找到合适的可点击父容器 (层级" + (level + 1) + ")");
+                logger.addLog(window, "父容器位置: (" + parentBounds.centerX() + "," + parentBounds.centerY() + ")");
+                return parent;
+            }
+
+            currentElement = parent;
         }
-        
-        // 策略2: 寻找价格上方的图片区域（通常是商品图片）
-        var imageArea = this.findImageAreaAbovePrice(priceBounds);
+
+        // 策略2: 寻找价格附近的图片区域（更精确的范围）
+        var imageArea = this.findImageAreaNearPrice(window, priceBounds);
         if (imageArea) {
-            logger.addLog(window, "找到商品图片区域");
+            logger.addLog(window, "找到价格附近的商品图片区域");
             return imageArea;
         }
-        
+
         // 策略3: 直接返回价格元素本身
         logger.addLog(window, "使用价格元素本身");
         return priceElement;
-        
+
     } catch (e) {
         logger.addLog(window, "寻找可点击区域失败: " + e.message);
         return priceElement;
@@ -320,28 +360,59 @@ ProductFavorite.prototype.findClickableProductArea = function(window, priceEleme
 };
 
 /**
- * 寻找价格上方的图片区域
+ * 寻找价格附近的图片区域（更精确的匹配）
+ * @param {Object} window 悬浮窗对象
  * @param {Object} priceBounds 价格元素边界
  * @returns {Object|null} 图片区域元素
  */
-ProductFavorite.prototype.findImageAreaAbovePrice = function(priceBounds) {
+ProductFavorite.prototype.findImageAreaNearPrice = function(window, priceBounds) {
     try {
-        // 在价格上方寻找ImageView或其他可能的图片元素
+        logger.addLog(window, "寻找价格附近的商品图片...");
+
+        // 在价格附近寻找ImageView
         var imageViews = className("android.widget.ImageView").find();
+        var bestMatch = null;
+        var minDistance = Infinity;
 
         for (var i = 0; i < imageViews.length; i++) {
             var imageView = imageViews[i];
             var imageBounds = imageView.bounds();
 
-            // 检查图片是否在价格上方且水平位置相近
-            if (imageBounds.centerY() < priceBounds.centerY() &&
-                Math.abs(imageBounds.centerX() - priceBounds.centerX()) < 200) {
-                return imageView;
+            // 计算图片与价格的距离
+            var horizontalDistance = Math.abs(imageBounds.centerX() - priceBounds.centerX());
+            var verticalDistance = Math.abs(imageBounds.centerY() - priceBounds.centerY());
+            var totalDistance = Math.sqrt(horizontalDistance * horizontalDistance + verticalDistance * verticalDistance);
+
+            // 检查图片是否在合理的位置范围内
+            // 1. 水平位置相近（同一列商品）
+            // 2. 垂直距离合理（通常商品图片在价格上方100-300像素内）
+            // 3. 图片大小合理（不能太小，避免选中装饰性图标）
+            var imageWidth = imageBounds.right - imageBounds.left;
+            var imageHeight = imageBounds.bottom - imageBounds.top;
+
+            if (horizontalDistance < 100 && // 水平距离小于100像素
+                imageBounds.centerY() < priceBounds.centerY() && // 图片在价格上方
+                verticalDistance < 300 && // 垂直距离小于300像素
+                imageWidth > 50 && imageHeight > 50 && // 图片大小合理
+                totalDistance < minDistance) {
+
+                bestMatch = imageView;
+                minDistance = totalDistance;
+                logger.addLog(window, "找到候选图片，距离: " + Math.round(totalDistance) +
+                    ", 位置: (" + imageBounds.centerX() + "," + imageBounds.centerY() + ")");
             }
         }
 
+        if (bestMatch) {
+            var bestBounds = bestMatch.bounds();
+            logger.addLog(window, "选择最佳匹配图片，位置: (" + bestBounds.centerX() + "," + bestBounds.centerY() + ")");
+            return bestMatch;
+        }
+
+        logger.addLog(window, "未找到合适的商品图片");
         return null;
     } catch (e) {
+        logger.addLog(window, "寻找商品图片失败: " + e.message);
         return null;
     }
 };
@@ -357,11 +428,11 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
         logger.addLog(window, "尝试点击商品...");
 
         var bounds = element.bounds();
-        logger.addLog(window, "商品元素位置: (" + bounds.centerX() + "," + bounds.centerY() + ")");
+        logger.addLog(window, "准备点击的元素位置: (" + bounds.centerX() + "," + bounds.centerY() + ")");
 
-        // 策略1: 使用safeClick
+        // 策略1: 使用safeClick点击元素
+        logger.addLog(window, "使用safeClick点击商品元素");
         if (safeClick(element)) {
-            logger.addLog(window, "使用safeClick点击商品");
             sleep(this.config.waitTimes.click);
 
             // 验证是否成功进入商品详情页
@@ -369,14 +440,28 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
                 logger.addLog(window, "✅ 成功进入商品详情页");
                 return true;
             } else {
-                logger.addLog(window, "❌ 未能进入商品详情页");
-                return false;
+                logger.addLog(window, "safeClick未能进入商品详情页，尝试其他方式");
             }
+        } else {
+            logger.addLog(window, "safeClick失败，尝试坐标点击");
         }
 
-        // 策略2: 直接坐标点击商品图片区域（价格上方）
-        var imageY = bounds.centerY() - 100; // 商品图片通常在价格上方
-        logger.addLog(window, "尝试点击商品图片区域: (" + bounds.centerX() + "," + imageY + ")");
+        // 策略2: 直接坐标点击元素中心
+        logger.addLog(window, "尝试坐标点击元素中心: (" + bounds.centerX() + "," + bounds.centerY() + ")");
+        click(bounds.centerX(), bounds.centerY());
+        sleep(this.config.waitTimes.click);
+
+        // 验证是否成功进入商品详情页
+        if (this.verifyProductDetailPage(window)) {
+            logger.addLog(window, "✅ 成功进入商品详情页");
+            return true;
+        } else {
+            logger.addLog(window, "坐标点击元素中心未成功，尝试点击上方区域");
+        }
+
+        // 策略3: 点击元素上方区域（可能是商品图片）
+        var imageY = bounds.centerY() - 80;
+        logger.addLog(window, "尝试点击元素上方区域: (" + bounds.centerX() + "," + imageY + ")");
         click(bounds.centerX(), imageY);
         sleep(this.config.waitTimes.click);
 
@@ -385,7 +470,7 @@ ProductFavorite.prototype.clickProduct = function(window, element) {
             logger.addLog(window, "✅ 成功进入商品详情页");
             return true;
         } else {
-            logger.addLog(window, "❌ 未能进入商品详情页");
+            logger.addLog(window, "❌ 所有点击策略都未能进入商品详情页");
             return false;
         }
 
@@ -461,6 +546,12 @@ ProductFavorite.prototype.favoriteProduct = function(window) {
     logger.addLog(window, "进入商品详情页，开始收藏...");
 
     sleep(this.config.waitTimes.pageLoad);
+
+    // 首先检查商品是否已经收藏过
+    if (this.isProductAlreadyFavorited(window)) {
+        logger.addLog(window, "商品已收藏过，跳过收藏");
+        return false;
+    }
 
     // 先触发规格选择（参考购买逻辑）
     logger.addLog(window, "先触发规格选择以确保商品有规格信息...");
@@ -719,17 +810,33 @@ ProductFavorite.prototype.verifyFavoriteSuccess = function(window) {
 };
 
 /**
- * 检查商品是否已经收藏过
- * @param {string} productText 商品文本
+ * 检查商品是否已经收藏过（通过检测页面上是否有"已收藏"文字）
+ * @param {Object} window 悬浮窗对象
  * @returns {boolean} 是否已收藏
  */
-ProductFavorite.prototype.isProductAlreadyFavorited = function(productText) {
-    for (var i = 0; i < this.favoritedProducts.length; i++) {
-        if (this.favoritedProducts[i].text === productText) {
-            return true;
+ProductFavorite.prototype.isProductAlreadyFavorited = function(window) {
+    try {
+        logger.addLog(window, "检查商品是否已收藏...");
+
+        // 检查页面上是否有"已收藏"相关文字
+        var favoritedTexts = [
+            "已收藏",
+            "取消收藏"
+        ];
+
+        for (var i = 0; i < favoritedTexts.length; i++) {
+            if (text(favoritedTexts[i]).findOne(1000)) {
+                logger.addLog(window, "检测到已收藏标识: " + favoritedTexts[i]);
+                return true;
+            }
         }
+
+        logger.addLog(window, "商品未收藏，可以进行收藏操作");
+        return false;
+    } catch (e) {
+        logger.addLog(window, "检查收藏状态失败: " + e.message);
+        return false;
     }
-    return false;
 };
 
 /**
@@ -754,50 +861,7 @@ ProductFavorite.prototype.isPositionClicked = function(position) {
     return false;
 };
 
-/**
- * 加载本地保存的已收藏商品列表
- */
-ProductFavorite.prototype.loadFavoritedProducts = function() {
-    try {
-        var savedData = storages.create("favorited_products").get("products", "[]");
-        this.favoritedProducts = JSON.parse(savedData);
-        console.log("已加载 " + this.favoritedProducts.length + " 个已收藏商品记录");
-    } catch (e) {
-        console.log("加载已收藏商品列表失败: " + e.message);
-        this.favoritedProducts = [];
-    }
-};
 
-/**
- * 保存已收藏商品列表到本地
- */
-ProductFavorite.prototype.saveFavoritedProducts = function() {
-    try {
-        var storage = storages.create("favorited_products");
-        storage.put("products", JSON.stringify(this.favoritedProducts));
-        console.log("已保存 " + this.favoritedProducts.length + " 个已收藏商品记录");
-    } catch (e) {
-        console.log("保存已收藏商品列表失败: " + e.message);
-    }
-};
-
-/**
- * 添加已收藏商品记录
- * @param {string} productText 商品文本
- * @param {number} price 商品价格
- */
-ProductFavorite.prototype.addFavoritedProduct = function(productText, price) {
-    var productRecord = {
-        text: productText,
-        price: price,
-        timestamp: Date.now(),
-        date: new Date().toLocaleString()
-    };
-
-    this.favoritedProducts.push(productRecord);
-    this.saveFavoritedProducts();
-    console.log("已记录收藏商品: " + productText + " (价格: " + price + "元)");
-};
 
 /**
  * 添加已点击位置记录
@@ -828,21 +892,6 @@ ProductFavorite.prototype.clearClickedPositions = function() {
     console.log("已清除所有位置记录");
 };
 
-/**
- * 清除已收藏商品记录
- */
-ProductFavorite.prototype.clearFavoritedProducts = function() {
-    this.favoritedProducts = [];
-    this.saveFavoritedProducts();
-    console.log("已清除所有已收藏商品记录");
-};
 
-/**
- * 获取已收藏商品数量
- * @returns {number} 已收藏商品数量
- */
-ProductFavorite.prototype.getFavoritedProductsCount = function() {
-    return this.favoritedProducts.length;
-};
 
 module.exports = ProductFavorite;
