@@ -11,6 +11,7 @@ const ProductPurchase = require('./modules/product-purchase.js');
 const ProductFavorite = require('./modules/product-favorite.js');
 const FavoriteSettlement = require('./modules/favorite-settlement.js');
 const AutoPayment = require('./modules/auto-payment.js');
+const DeliveryTracking = require('./modules/delivery-tracking.js');
 const UserInfo = require('./modules/user-info.js');
 const UserInfoManager = require('./utils/user-info-manager.js');
 const { GlobalStopManager } = require('./utils/common.js');
@@ -23,6 +24,7 @@ function MainApp() {
     this.productPurchase = null;
     this.productFavorite = null;
     this.autoPayment = null;
+    this.deliveryTracking = null;
     this.userInfo = null;
     this.userInfoManager = null; // 用户信息管理器
     this.scriptThread = null;
@@ -41,6 +43,7 @@ MainApp.prototype.init = function() {
     this.productFavorite = new ProductFavorite();
     this.favoriteSettlement = new FavoriteSettlement();
     this.autoPayment = new AutoPayment();
+    this.deliveryTracking = new DeliveryTracking();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
 
@@ -76,6 +79,8 @@ MainApp.prototype.setupCallbacks = function() {
                 logger.addLog(window, "=== 开始获取用户信息 ===");
 
                 var userInfo = self.userInfoManager.getCompleteUserInfo(window);
+                logger.addLog(window, "🔍 用户信息获取完成，结果: " + (userInfo ? "成功" : "失败"));
+
                 if (!userInfo) {
                     logger.addLog(window, "⚠️ 用户信息获取失败，继续执行功能");
                 }
@@ -89,6 +94,13 @@ MainApp.prototype.setupCallbacks = function() {
                 // 根据模式执行不同功能
                 logger.addLog(window, "接收到的模式参数: '" + mode + "'");
                 logger.addLog(window, "模式类型: " + typeof mode);
+                logger.addLog(window, "模式长度: " + (mode ? mode.length : 'null'));
+
+                // 添加详细的条件判断日志
+                logger.addLog(window, "payment判断: " + (mode === 'payment'));
+                logger.addLog(window, "favorite判断: " + (mode === 'favorite'));
+                logger.addLog(window, "favoriteSettlement判断: " + (mode === 'favoriteSettlement'));
+                logger.addLog(window, "delivery判断: " + (mode === 'delivery'));
 
                 if (mode === 'payment') {
                     // 执行自动支付功能
@@ -103,10 +115,15 @@ MainApp.prototype.setupCallbacks = function() {
                     // 执行收藏结算功能
                     logger.addLog(window, "执行模式: 收藏结算");
                     self.favoriteSettlement.execute(window, userName);
+                } else if (mode === 'delivery') {
+                    // 执行待收货物流追踪功能
+                    logger.addLog(window, "✅ 匹配到delivery模式，开始执行物流追踪");
+                    self.deliveryTracking.execute(window, userName);
                 } else {
                     // 执行购买功能，传入用户名和购买数量
                     logger.addLog(window, "执行模式: 自动购买 (默认或其他模式)");
                     logger.addLog(window, "实际模式值: '" + mode + "'");
+                    logger.addLog(window, "进入else分支，执行购买功能");
                     self.productPurchase.execute(window, priceRange, userName, purchaseQuantity);
                 }
             } catch (e) {

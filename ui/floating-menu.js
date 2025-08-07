@@ -119,17 +119,36 @@ FloatingMenu.prototype.create = function() {
                         </horizontal>
                     </vertical>
 
-                    <vertical margin="2dp 5dp 5dp 5dp">
+                    <vertical id="deliveryControls" margin="5dp 5dp 2dp 5dp" visibility="gone">
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="待收货功能:" textColor="#333333" textSize="14sp" textStyle="bold"/>
+                        </horizontal>
 
+                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                            <text text="• 自动导航到待收货页面" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                            <text text="• 批量获取物流单号" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="• 复制单号到剪贴板" textColor="#666666" textSize="12sp"/>
+                        </horizontal>
+                    </vertical>
+
+                    <vertical margin="2dp 5dp 5dp 5dp">
                         <horizontal gravity="center">
                             <button id="purchaseModeBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
-                                    w="65dp" h="35dp" margin="1dp" textSize="9sp"/>
+                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="paymentModeBtn" text="支付模式" textColor="#666666" bg="#E0E0E0"
-                                    w="65dp" h="35dp" margin="1dp" textSize="9sp"/>
+                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="favoriteModeBtn" text="收藏模式" textColor="#666666" bg="#E0E0E0"
-                                    w="65dp" h="35dp" margin="1dp" textSize="9sp"/>
+                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="favoriteSettlementModeBtn" text="收藏结算" textColor="#666666" bg="#E0E0E0"
-                                    w="65dp" h="35dp" margin="1dp" textSize="9sp"/>
+                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
+                            <button id="deliveryModeBtn" text="待收货" textColor="#666666" bg="#E0E0E0"
+                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                         </horizontal>
                     </vertical>
 
@@ -396,6 +415,11 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             self.switchToMode('favoriteSettlement');
         });
 
+        // 待收货模式按钮事件处理
+        this.menuWindow.deliveryModeBtn.click(function() {
+            self.switchToMode('delivery');
+        });
+
 
 
     } catch (e) {
@@ -499,12 +523,15 @@ FloatingMenu.prototype.switchToMode = function(mode) {
     this.menuWindow.favoriteModeBtn.attr('bg', '#E0E0E0');
     this.menuWindow.favoriteSettlementModeBtn.attr('textColor', '#666666');
     this.menuWindow.favoriteSettlementModeBtn.attr('bg', '#E0E0E0');
+    this.menuWindow.deliveryModeBtn.attr('textColor', '#666666');
+    this.menuWindow.deliveryModeBtn.attr('bg', '#E0E0E0');
 
     // 隐藏所有控件
     this.menuWindow.purchaseControls.attr('visibility', 'gone');
     this.menuWindow.paymentControls.attr('visibility', 'gone');
     this.menuWindow.favoriteControls.attr('visibility', 'gone');
     this.menuWindow.favoriteSettlementControls.attr('visibility', 'gone');
+    this.menuWindow.deliveryControls.attr('visibility', 'gone');
 
     if (mode === 'purchase') {
         // 切换到购买模式
@@ -530,6 +557,12 @@ FloatingMenu.prototype.switchToMode = function(mode) {
         this.menuWindow.favoriteSettlementModeBtn.attr('bg', '#9C27B0');
         this.menuWindow.favoriteSettlementControls.attr('visibility', 'visible');
         this.addLog("切换到收藏结算模式");
+    } else if (mode === 'delivery') {
+        // 切换到待收货模式
+        this.menuWindow.deliveryModeBtn.attr('textColor', '#ffffff');
+        this.menuWindow.deliveryModeBtn.attr('bg', '#FF5722');
+        this.menuWindow.deliveryControls.attr('visibility', 'visible');
+        this.addLog("切换到待收货模式");
     }
 
     if (this.onModeChangeCallback) {

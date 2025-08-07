@@ -7,6 +7,7 @@ const ProductPurchase = require('../modules/product-purchase.js');
 const ProductFavorite = require('../modules/product-favorite.js');
 const FavoriteSettlement = require('../modules/favorite-settlement.js');
 const AutoPayment = require('../modules/auto-payment.js');
+const DeliveryTracking = require('../modules/delivery-tracking.js');
 const UserInfo = require('../modules/user-info.js');
 const UserInfoManager = require('../utils/user-info-manager.js');
 const FloatingWindow = require('./floating-window.js');
@@ -20,6 +21,7 @@ function MainUI() {
     this.productFavorite = null;
     this.favoriteSettlement = null;
     this.autoPayment = null;
+    this.deliveryTracking = null;
     this.userInfo = null;
     this.userInfoManager = null; // 用户信息管理器
     this.isFloatingWindowActive = false;
@@ -222,6 +224,7 @@ MainUI.prototype.initializeModules = function() {
     this.productFavorite = new ProductFavorite();
     this.favoriteSettlement = new FavoriteSettlement();
     this.autoPayment = new AutoPayment();
+    this.deliveryTracking = new DeliveryTracking();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
 
@@ -464,6 +467,10 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     // 执行收藏结算功能
                     self.addLog("执行模式: 收藏结算");
                     self.favoriteSettlement.execute(window, userName);
+                } else if (mode === 'delivery') {
+                    // 执行待收货物流追踪功能
+                    self.addLog("✅ 匹配到delivery模式，开始执行物流追踪");
+                    self.deliveryTracking.execute(window, userName);
                 } else {
                     // 执行购买功能
                     self.addLog("执行模式: 自动购买");

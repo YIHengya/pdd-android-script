@@ -4,6 +4,7 @@
 const HomeNavigation = require('./navigation/home-navigation.js');
 const PersonalNavigation = require('./navigation/personal-navigation.js');
 const PaymentNavigation = require('./navigation/payment-navigation.js');
+const DeliveryNavigation = require('./navigation/delivery-navigation.js');
 const { PDD_CONFIG } = require('../config/app-config.js');
 const { isInApp } = require('./common.js');
 const logger = require('./logger.js');
@@ -16,6 +17,7 @@ function NavigationHelper() {
     this.homeNav = new HomeNavigation();
     this.personalNav = new PersonalNavigation();
     this.paymentNav = new PaymentNavigation();
+    this.deliveryNav = new DeliveryNavigation();
 }
 
 /**
@@ -46,6 +48,15 @@ NavigationHelper.prototype.goToPendingPaymentPage = function(window) {
 };
 
 /**
+ * 进入待收货页面的方法
+ * @param {Object} window 悬浮窗对象
+ * @returns {boolean} 是否成功进入待收货页面
+ */
+NavigationHelper.prototype.goToPendingDeliveryPage = function(window) {
+    return this.deliveryNav.goToPendingDeliveryPage(window);
+};
+
+/**
  * 检查是否在主页
  * @param {Object} window 悬浮窗对象
  * @returns {boolean} 是否在主页
@@ -70,6 +81,15 @@ NavigationHelper.prototype.isAtPersonalCenter = function(window) {
  */
 NavigationHelper.prototype.isAtPendingPaymentPage = function(window) {
     return this.paymentNav.isAtPendingPaymentPage(window);
+};
+
+/**
+ * 检查是否在待收货页面
+ * @param {Object} window 悬浮窗对象
+ * @returns {boolean} 是否在待收货页面
+ */
+NavigationHelper.prototype.isAtPendingDeliveryPage = function(window) {
+    return this.deliveryNav.isAtPendingDeliveryPage(window);
 };
 
 /**
@@ -106,6 +126,8 @@ NavigationHelper.prototype.smartNavigate = function(window, target) {
             return this.goToPersonalCenter(window);
         case "payment":
             return this.goToPendingPaymentPage(window);
+        case "delivery":
+            return this.goToPendingDeliveryPage(window);
         default:
             logger.addLog(window, "❌ 未知的导航目标: " + target);
             return false;
