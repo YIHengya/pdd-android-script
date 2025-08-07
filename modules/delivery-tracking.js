@@ -125,12 +125,13 @@ DeliveryTracking.prototype.findDeliveryInfosByCopyButton = function(window) {
     var deliveryInfos = [];
     var processedProducts = new Set(); // 用于记录已处理的商品名称
     var processedTrackingNumbers = new Set(); // 用于记录已处理的快递单号，避免重复
-    var maxScrollAttempts = 10; // 最大滚动次数
     var scrollAttempt = 0;
     var noNewButtonsCount = 0; // 连续没有新按钮的次数
+    var noNewProductsCount = 0; // 连续没有新商品的次数
+    var maxNoNewAttempts = 3; // 连续没有新内容的最大尝试次数
 
     try {
-        while (scrollAttempt < maxScrollAttempts && !GlobalStopManager.isStopRequested()) {
+        while (!GlobalStopManager.isStopRequested()) {
             logger.addLog(window, "第 " + (scrollAttempt + 1) + " 次扫描当前屏幕...");
 
             // 获取当前屏幕可见的商品信息和对应的查看物流按钮
@@ -140,9 +141,9 @@ DeliveryTracking.prototype.findDeliveryInfosByCopyButton = function(window) {
                 logger.addLog(window, "当前屏幕未找到可见的商品和查看物流按钮");
                 noNewButtonsCount++;
 
-                // 如果连续几次都没有找到按钮，可能已经到底了
-                if (noNewButtonsCount >= 2) {
-                    logger.addLog(window, "连续未找到新商品，可能已扫描完所有商品");
+                // 如果连续多次都没有找到按钮，可能已经到底了
+                if (noNewButtonsCount >= maxNoNewAttempts) {
+                    logger.addLog(window, "连续 " + maxNoNewAttempts + " 次未找到新商品，可能已扫描完所有商品");
                     break;
                 }
 
@@ -156,6 +157,9 @@ DeliveryTracking.prototype.findDeliveryInfosByCopyButton = function(window) {
 
             logger.addLog(window, "当前屏幕找到 " + visibleProductsWithButtons.length + " 个可见的商品");
             noNewButtonsCount = 0; // 重置计数器
+
+            // 统计本次扫描中的新商品数量
+            var newProductsInThisScan = 0;
 
             // 处理当前屏幕可见的所有商品
             for (var i = 0; i < visibleProductsWithButtons.length && !GlobalStopManager.isStopRequested(); i++) {
@@ -178,6 +182,9 @@ DeliveryTracking.prototype.findDeliveryInfosByCopyButton = function(window) {
                     logger.addLog(window, "商品 '" + productIdentifier + "' 已经处理过，跳过");
                     continue;
                 }
+
+                // 这是一个新商品
+                newProductsInThisScan++;
 
                 // 点击查看物流按钮
                 if (safeClick(logisticsButton)) {
@@ -234,6 +241,21 @@ DeliveryTracking.prototype.findDeliveryInfosByCopyButton = function(window) {
 
                 // 短暂等待，避免操作过快
                 waitTimeManager.wait('short');
+            }
+
+            // 检查本次扫描是否有新商品
+            if (newProductsInThisScan === 0) {
+                noNewProductsCount++;
+                logger.addLog(window, "本次扫描未发现新商品，连续无新商品次数: " + noNewProductsCount);
+
+                // 如果连续多次都没有新商品，可能已经到底了
+                if (noNewProductsCount >= maxNoNewAttempts) {
+                    logger.addLog(window, "连续 " + maxNoNewAttempts + " 次未发现新商品，停止扫描");
+                    break;
+                }
+            } else {
+                noNewProductsCount = 0; // 重置计数器
+                logger.addLog(window, "本次扫描发现 " + newProductsInThisScan + " 个新商品");
             }
 
             // 处理完当前屏幕的所有按钮后，向下滚动查看更多
@@ -818,8 +840,9 @@ DeliveryTracking.prototype.getAllTrackingNumbersByCopyButton = function(window) 
 
     var allDeliveryInfos = [];
     var processedTrackingNumbers = new Set(); // 用于去重
-    var maxScrollAttempts = 5; // 最大滚动次数
     var scrollAttempt = 0;
+    var noNewTrackingNumberCount = 0; // 连续没有新快递单号的次数
+    var maxNoNewAttempts = 3; // 连续没有新内容的最大尝试次数
 
     try {
         // 保存当前剪贴板内容
@@ -830,7 +853,7 @@ DeliveryTracking.prototype.getAllTrackingNumbersByCopyButton = function(window) 
             logger.addLog(window, "无法获取当前剪贴板内容");
         }
 
-        while (scrollAttempt < maxScrollAttempts && !GlobalStopManager.isStopRequested()) {
+        while (!GlobalStopManager.isStopRequested()) {
             logger.addLog(window, "第 " + (scrollAttempt + 1) + " 次扫描页面...");
 
             // 查找当前页面的复制按钮
@@ -908,20 +931,27 @@ DeliveryTracking.prototype.getAllTrackingNumbersByCopyButton = function(window) 
                 waitTimeManager.wait('short');
             }
 
-            // 如果没有找到新的快递单号，尝试滚动页面
+            // 检查是否找到新的快递单号
             if (!foundNewTrackingNumber) {
-                logger.addLog(window, "未找到新的快递单号，尝试向下滚动...");
+                noNewTrackingNumberCount++;
+                logger.addLog(window, "未找到新的快递单号，连续无新单号次数: " + noNewTrackingNumberCount);
+
+                // 如果连续多次都没有找到新单号，可能已经到底了
+                if (noNewTrackingNumberCount >= maxNoNewAttempts) {
+                    logger.addLog(window, "连续 " + maxNoNewAttempts + " 次未找到新单号，停止扫描");
+                    break;
+                }
+
+                // 尝试滚动页面
+                logger.addLog(window, "尝试向下滚动...");
                 this.scrollDownInLogisticsPage(window);
                 waitTimeManager.wait('pageStable');
+            } else {
+                noNewTrackingNumberCount = 0; // 重置计数器
+                logger.addLog(window, "找到新的快递单号，重置计数器");
             }
 
             scrollAttempt++;
-
-            // 如果连续几次都没有找到新的单号，可能已经到底了
-            if (!foundNewTrackingNumber && scrollAttempt >= 2) {
-                logger.addLog(window, "连续未找到新单号，可能已扫描完所有内容");
-                break;
-            }
         }
 
         logger.addLog(window, "扫描完成，共获取到 " + allDeliveryInfos.length + " 个不重复的快递信息");
@@ -1365,11 +1395,17 @@ DeliveryTracking.prototype.identifyExpressCompanyByTrackingNumber = function(tra
         return "韵达快递";
     }
 
+    // 邮政快递：98开头的数字
+    if (/^98\d{11,}$/.test(trackingNumber)) {
+        return "邮政快递";
+    }
+
     // 中通快递：通常以数字开头，长度12-15位（排除其他已知规则）
     if (/^[1-9]\d{11,14}$/.test(trackingNumber) &&
         !trackingNumber.startsWith('4') &&
         !trackingNumber.startsWith('6') &&
-        !trackingNumber.startsWith('7')) {
+        !trackingNumber.startsWith('7') &&
+        !trackingNumber.startsWith('98')) {
         return "中通快递";
     }
 
