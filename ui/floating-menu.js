@@ -136,7 +136,7 @@ FloatingMenu.prototype.create = function() {
                     <vertical margin="5dp">
                         <horizontal gravity="center_vertical" margin="0 0 5dp 0">
                             <text text="等待倍率:" textColor="#333333" textSize="12sp" w="60dp"/>
-                            <text id="speedDisplay" text="正常模式 (1.0x)" textColor="#333333" textSize="12sp" textStyle="bold" layout_weight="1"/>
+                            <text id="speedDisplay" text="模式 (1.0x)" textColor="#333333" textSize="12sp" textStyle="bold" layout_weight="1"/>
                         </horizontal>
 
                         <horizontal gravity="center_vertical" margin="0 0 8dp 0">
@@ -146,18 +146,7 @@ FloatingMenu.prototype.create = function() {
                             <text id="speedText" text="1.0x" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
                         </horizontal>
 
-                        <horizontal gravity="center" margin="0 0 5dp 0">
-                            <button id="speedDebugBtn" text="调试" textColor="#ffffff" bg="#9E9E9E"
-                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
-                            <button id="speedSlowBtn" text="慢速" textColor="#ffffff" bg="#FF5722"
-                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
-                            <button id="speedNormalBtn" text="正常" textColor="#ffffff" bg="#4CAF50"
-                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
-                            <button id="speedFastBtn" text="快速" textColor="#ffffff" bg="#2196F3"
-                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
-                            <button id="speedTurboBtn" text="极速" textColor="#ffffff" bg="#9C27B0"
-                                    w="50dp" h="30dp" margin="1dp" textSize="9sp"/>
-                        </horizontal>
+
                     </vertical>
 
                     <horizontal margin="5dp" gravity="center">
@@ -407,26 +396,7 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             self.switchToMode('favoriteSettlement');
         });
 
-        // 等待时间倍率预设按钮事件处理
-        this.menuWindow.speedDebugBtn.click(function() {
-            self.setSpeedPreset('debug');
-        });
 
-        this.menuWindow.speedSlowBtn.click(function() {
-            self.setSpeedPreset('slow');
-        });
-
-        this.menuWindow.speedNormalBtn.click(function() {
-            self.setSpeedPreset('normal');
-        });
-
-        this.menuWindow.speedFastBtn.click(function() {
-            self.setSpeedPreset('fast');
-        });
-
-        this.menuWindow.speedTurboBtn.click(function() {
-            self.setSpeedPreset('turbo');
-        });
 
     } catch (e) {
         console.error("Error setting up event handlers: " + e.message);
