@@ -115,76 +115,109 @@ DeliveryTracking.prototype.getAllTrackingNumbers = function(window) {
 };
 
 /**
- * 通过查看物流按钮进入详情页查找快递信息
+ * 通过查看物流按钮进入详情页查找快递信息（基于商品名称去重）
  * @param {Object} window 悬浮窗对象
  * @returns {Array} 快递信息数组，每个元素包含快递公司和单号
  */
 DeliveryTracking.prototype.findDeliveryInfosByCopyButton = function(window) {
-    logger.addLog(window, "开始查找待收货商品的物流信息（支持页面滚动）...");
+    logger.addLog(window, "开始查找待收货商品的物流信息...");
 
     var deliveryInfos = [];
-    var globalProcessedNumbers = new Set(); // 全局去重集合
-    var processedButtonCount = 0;
+    var processedProducts = new Set(); // 用于记录已处理的商品名称
+    var processedTrackingNumbers = new Set(); // 用于记录已处理的快递单号，避免重复
     var maxScrollAttempts = 10; // 最大滚动次数
     var scrollAttempt = 0;
-    var consecutiveNoNewButtons = 0; // 连续未找到新按钮的次数
+    var noNewButtonsCount = 0; // 连续没有新按钮的次数
 
     try {
         while (scrollAttempt < maxScrollAttempts && !GlobalStopManager.isStopRequested()) {
-            logger.addLog(window, "第 " + (scrollAttempt + 1) + " 次扫描待收货页面...");
+            logger.addLog(window, "第 " + (scrollAttempt + 1) + " 次扫描当前屏幕...");
 
-            // 查找当前页面的"查看物流"按钮
-            var logisticsButtons = this.findLogisticsButtons(window);
+            // 获取当前屏幕可见的商品信息和对应的查看物流按钮
+            var visibleProductsWithButtons = this.getVisibleProductsWithLogisticsButtons(window);
 
-            if (logisticsButtons.length === 0) {
-                logger.addLog(window, "未找到查看物流按钮，尝试滚动查看更多商品");
-                this.scrollDownInDeliveryListPage(window);
-                waitTimeManager.wait('pageStable');
-                scrollAttempt++;
-                consecutiveNoNewButtons++;
+            if (visibleProductsWithButtons.length === 0) {
+                logger.addLog(window, "当前屏幕未找到可见的商品和查看物流按钮");
+                noNewButtonsCount++;
 
-                // 如果连续3次都没找到按钮，可能已经到底了
-                if (consecutiveNoNewButtons >= 3) {
-                    logger.addLog(window, "连续未找到查看物流按钮，可能已扫描完所有商品");
+                // 如果连续几次都没有找到按钮，可能已经到底了
+                if (noNewButtonsCount >= 2) {
+                    logger.addLog(window, "连续未找到新商品，可能已扫描完所有商品");
                     break;
                 }
+
+                // 尝试向下滚动
+                logger.addLog(window, "尝试在待收货页面向下滚动...");
+                this.scrollDownInDeliveryPage(window);
+                waitTimeManager.wait('pageStable');
+                scrollAttempt++;
                 continue;
             }
 
-            logger.addLog(window, "找到 " + logisticsButtons.length + " 个查看物流按钮");
+            logger.addLog(window, "当前屏幕找到 " + visibleProductsWithButtons.length + " 个可见的商品");
+            noNewButtonsCount = 0; // 重置计数器
 
-            var foundNewButtons = false;
-            var currentRoundProcessed = 0;
+            // 处理当前屏幕可见的所有商品
+            for (var i = 0; i < visibleProductsWithButtons.length && !GlobalStopManager.isStopRequested(); i++) {
+                var productInfo = visibleProductsWithButtons[i];
+                var productName = productInfo.productName;
+                var logisticsButton = productInfo.button;
 
-            // 遍历当前页面的每个查看物流按钮
-            for (var i = 0; i < logisticsButtons.length && !GlobalStopManager.isStopRequested(); i++) {
-                processedButtonCount++;
-                currentRoundProcessed++;
+                logger.addLog(window, "正在处理商品: " + (productName || "未知商品"));
 
-                logger.addLog(window, "正在处理第 " + processedButtonCount + " 个商品（当前页面第 " + (i + 1) + " 个）...");
+                // 为未知商品生成唯一标识符（基于按钮位置）
+                var productIdentifier = productName;
+                if (!productIdentifier) {
+                    var buttonBounds = logisticsButton.bounds();
+                    productIdentifier = "unknown_" + buttonBounds.centerX() + "_" + buttonBounds.centerY();
+                    logger.addLog(window, "为未知商品生成标识符: " + productIdentifier);
+                }
+
+                // 检查是否已经处理过这个商品
+                if (processedProducts.has(productIdentifier)) {
+                    logger.addLog(window, "商品 '" + productIdentifier + "' 已经处理过，跳过");
+                    continue;
+                }
 
                 // 点击查看物流按钮
-                if (safeClick(logisticsButtons[i])) {
-                    logger.addLog(window, "成功点击第 " + processedButtonCount + " 个查看物流按钮");
+                if (safeClick(logisticsButton)) {
+                    logger.addLog(window, "成功点击查看物流按钮");
                     waitTimeManager.wait('pageStable');
 
+                    // 额外等待确保物流详情页完全加载
+                    logger.addLog(window, "等待物流详情页完全加载...");
+                    waitTimeManager.wait('medium'); // 额外等待1.5秒
+
                     // 在物流详情页查找快递信息
-                    var currentDeliveryInfos = this.extractDeliveryInfoFromLogisticsPage(window, processedButtonCount);
+                    var currentDeliveryInfos = this.extractDeliveryInfoFromLogisticsPage(window, deliveryInfos.length + 1);
 
                     if (currentDeliveryInfos && currentDeliveryInfos.length > 0) {
-                        // 对当前商品的快递信息进行全局去重
+                        // 将当前商品的所有快递信息添加到总列表（去重处理）
+                        var addedCount = 0;
                         for (var j = 0; j < currentDeliveryInfos.length; j++) {
-                            var info = currentDeliveryInfos[j];
-                            if (!globalProcessedNumbers.has(info.trackingNumber)) {
-                                globalProcessedNumbers.add(info.trackingNumber);
-                                info.index = deliveryInfos.length + 1; // 重新编号
-                                deliveryInfos.push(info);
-                                logger.addLog(window, "添加新快递信息: " + info.company + " - " + info.trackingNumber);
-                                foundNewButtons = true;
-                            } else {
-                                logger.addLog(window, "跳过重复快递单号: " + info.trackingNumber);
+                            var deliveryInfo = currentDeliveryInfos[j];
+                            var trackingNumber = deliveryInfo.trackingNumber;
+
+                            // 检查快递单号是否已经存在
+                            if (trackingNumber && !processedTrackingNumbers.has(trackingNumber)) {
+                                // 添加商品名称到快递信息中
+                                deliveryInfo.productName = productName;
+                                deliveryInfos.push(deliveryInfo);
+                                processedTrackingNumbers.add(trackingNumber);
+                                addedCount++;
+                                logger.addLog(window, "添加新快递信息: " + (deliveryInfo.company || "未知快递") + " - " + trackingNumber);
+                            } else if (trackingNumber) {
+                                logger.addLog(window, "快递单号已存在，跳过: " + trackingNumber);
                             }
                         }
+
+                        // 记录已处理的商品（使用标识符）
+                        processedProducts.add(productIdentifier);
+                        logger.addLog(window, "已记录商品: " + productIdentifier + "，新增 " + addedCount + " 个快递信息");
+                    } else {
+                        // 即使没有找到快递信息，也要记录已处理，避免重复点击
+                        processedProducts.add(productIdentifier);
+                        logger.addLog(window, "商品无快递信息，但已记录避免重复处理: " + productIdentifier);
                     }
 
                     // 返回上一页
@@ -193,37 +226,24 @@ DeliveryTracking.prototype.findDeliveryInfosByCopyButton = function(window) {
                     waitTimeManager.wait('back');
 
                 } else {
-                    logger.addLog(window, "点击第 " + processedButtonCount + " 个查看物流按钮失败");
+                    logger.addLog(window, "点击查看物流按钮失败");
+                    // 即使点击失败，也要记录，避免重复尝试
+                    processedProducts.add(productIdentifier);
+                    logger.addLog(window, "点击失败，已记录避免重复尝试: " + productIdentifier);
                 }
 
                 // 短暂等待，避免操作过快
                 waitTimeManager.wait('short');
             }
 
-            logger.addLog(window, "本轮处理了 " + currentRoundProcessed + " 个商品，累计处理 " + processedButtonCount + " 个商品");
-
-            // 更新连续未找到新按钮的计数
-            if (foundNewButtons) {
-                consecutiveNoNewButtons = 0;
-            } else {
-                consecutiveNoNewButtons++;
-            }
-
-            // 如果连续2次都没有找到新的有效按钮，可能已经到底了
-            if (consecutiveNoNewButtons >= 2) {
-                logger.addLog(window, "连续 " + consecutiveNoNewButtons + " 次未找到新的有效商品，可能已扫描完所有内容");
-                break;
-            }
-
-            // 向下滚动待收货页面查看更多商品
-            logger.addLog(window, "向下滚动待收货页面查看更多商品...");
-            this.scrollDownInDeliveryListPage(window);
+            // 处理完当前屏幕的所有按钮后，向下滚动查看更多
+            logger.addLog(window, "当前屏幕处理完成，向下滚动查看更多商品...");
+            this.scrollDownInDeliveryPage(window);
             waitTimeManager.wait('pageStable');
-
             scrollAttempt++;
         }
 
-        logger.addLog(window, "扫描完成，共处理 " + processedButtonCount + " 个商品，获得 " + deliveryInfos.length + " 个不重复的快递信息");
+        logger.addLog(window, "扫描完成，共处理了 " + processedProducts.size + " 个商品，获取到 " + deliveryInfos.length + " 个快递信息");
 
     } catch (e) {
         logger.addLog(window, "查找快递信息时出错: " + e.message);
@@ -279,6 +299,288 @@ DeliveryTracking.prototype.findLogisticsButtons = function(window) {
 };
 
 /**
+ * 获取当前屏幕可见的商品信息和对应的查看物流按钮
+ * @param {Object} window 悬浮窗对象
+ * @returns {Array} 包含商品信息和按钮的对象数组
+ */
+DeliveryTracking.prototype.getVisibleProductsWithLogisticsButtons = function(window) {
+    logger.addLog(window, "获取当前屏幕可见的商品信息和查看物流按钮...");
+
+    var visibleProductsWithButtons = [];
+
+    try {
+        // 获取屏幕尺寸
+        var screenHeight = device.height;
+        var screenWidth = device.width;
+
+        // 定义可见区域（排除状态栏和导航栏）
+        var visibleTop = screenHeight * 0.1;    // 排除顶部状态栏
+        var visibleBottom = screenHeight * 0.9;  // 排除底部导航栏
+
+        logger.addLog(window, "屏幕可见区域: 0," + visibleTop + " - " + screenWidth + "," + visibleBottom);
+
+        // 获取可见的商品名称元素
+        var visibleProducts = this.getVisibleProductNames(window, visibleTop, visibleBottom);
+        logger.addLog(window, "找到 " + visibleProducts.length + " 个可见商品");
+
+        // 获取可见的查看物流按钮
+        var visibleButtons = this.getVisibleLogisticsButtons(window, visibleTop, visibleBottom);
+        logger.addLog(window, "找到 " + visibleButtons.length + " 个可见的查看物流按钮");
+
+        // 将商品和按钮进行配对
+        for (var i = 0; i < visibleButtons.length; i++) {
+            var button = visibleButtons[i];
+            var buttonBounds = button.bounds();
+            var buttonY = buttonBounds.centerY();
+
+            // 查找距离按钮最近的商品名称
+            var closestProduct = null;
+            var minDistance = Infinity;
+
+            for (var j = 0; j < visibleProducts.length; j++) {
+                var product = visibleProducts[j];
+                var productBounds = product.bounds;
+                var productY = productBounds.centerY();
+
+                // 计算垂直距离
+                var distance = Math.abs(buttonY - productY);
+
+                // 确保商品在按钮上方（商品Y坐标小于按钮Y坐标）
+                if (productY < buttonY && distance < minDistance) {
+                    minDistance = distance;
+                    closestProduct = product;
+                }
+            }
+
+            if (closestProduct) {
+                visibleProductsWithButtons.push({
+                    productName: closestProduct.name,
+                    button: button,
+                    productBounds: closestProduct.bounds,
+                    buttonBounds: buttonBounds
+                });
+
+                logger.addLog(window, "配对成功: " + closestProduct.name + " <-> 查看物流按钮");
+            } else {
+                // 如果没有找到对应的商品，也添加到列表中，但商品名称为空
+                visibleProductsWithButtons.push({
+                    productName: null,
+                    button: button,
+                    productBounds: null,
+                    buttonBounds: buttonBounds
+                });
+
+                logger.addLog(window, "未找到对应商品的查看物流按钮");
+            }
+        }
+
+        logger.addLog(window, "共配对成功 " + visibleProductsWithButtons.length + " 个商品和按钮");
+
+    } catch (e) {
+        logger.addLog(window, "获取可见商品和按钮时出错: " + e.message);
+    }
+
+    return visibleProductsWithButtons;
+};
+
+/**
+ * 获取当前屏幕可见区域内的商品名称
+ * @param {Object} window 悬浮窗对象
+ * @param {number} visibleTop 可见区域顶部
+ * @param {number} visibleBottom 可见区域底部
+ * @returns {Array} 可见的商品名称数组
+ */
+DeliveryTracking.prototype.getVisibleProductNames = function(window, visibleTop, visibleBottom) {
+    logger.addLog(window, "获取当前屏幕可见区域内的商品名称...");
+
+    var visibleProducts = [];
+
+    try {
+        // 通过descContains查找包含"商品名称"的元素（参考测试文件的方法）
+        var productElements = descContains("商品名称").find();
+        logger.addLog(window, "找到 " + productElements.length + " 个包含'商品名称'的元素");
+
+        for (var i = 0; i < productElements.length; i++) {
+            try {
+                var element = productElements[i];
+                var bounds = element.bounds();
+                var desc = element.desc() || "";
+
+                // 检查元素是否在可见区域内
+                var elementCenterY = bounds.centerY();
+
+                if (elementCenterY >= visibleTop && elementCenterY <= visibleBottom && bounds.left > 0) {
+                    // 提取商品名称（去掉"商品名称："前缀）
+                    var productName = desc.replace("商品名称：", "").trim();
+
+                    if (productName) {
+                        visibleProducts.push({
+                            name: productName,
+                            bounds: bounds,
+                            element: element
+                        });
+
+                        logger.addLog(window, "找到可见商品: " + productName);
+                    }
+                }
+            } catch (e) {
+                logger.addLog(window, "处理商品元素时出错: " + e.message);
+            }
+        }
+
+        logger.addLog(window, "共找到 " + visibleProducts.length + " 个可见的商品名称");
+
+    } catch (e) {
+        logger.addLog(window, "获取可见商品名称时出错: " + e.message);
+    }
+
+    return visibleProducts;
+};
+
+/**
+ * 获取当前屏幕可见区域内的查看物流按钮
+ * @param {Object} window 悬浮窗对象
+ * @param {number} visibleTop 可见区域顶部
+ * @param {number} visibleBottom 可见区域底部
+ * @returns {Array} 可见的查看物流按钮数组
+ */
+DeliveryTracking.prototype.getVisibleLogisticsButtons = function(window, visibleTop, visibleBottom) {
+    logger.addLog(window, "获取当前屏幕可见区域内的查看物流按钮...");
+
+    var visibleButtons = [];
+
+    try {
+        // 如果没有传入可见区域参数，使用默认值
+        if (typeof visibleTop === 'undefined' || typeof visibleBottom === 'undefined') {
+            var screenHeight = device.height;
+            visibleTop = screenHeight * 0.1;
+            visibleBottom = screenHeight * 0.9;
+        }
+
+        // 查找所有查看物流按钮
+        var allButtons = this.findLogisticsButtons(window);
+
+        // 筛选出在可见区域内的按钮
+        for (var i = 0; i < allButtons.length; i++) {
+            try {
+                var button = allButtons[i];
+                var bounds = button.bounds();
+
+                // 检查按钮是否在可见区域内
+                var buttonCenterY = bounds.centerY();
+
+                if (buttonCenterY >= visibleTop && buttonCenterY <= visibleBottom && bounds.left > 0) {
+                    visibleButtons.push(button);
+                    logger.addLog(window, "找到可见按钮，位置: " + bounds.centerX() + "," + buttonCenterY);
+                }
+            } catch (e) {
+                logger.addLog(window, "检查按钮可见性时出错: " + e.message);
+            }
+        }
+
+        logger.addLog(window, "共找到 " + visibleButtons.length + " 个可见的查看物流按钮");
+
+    } catch (e) {
+        logger.addLog(window, "获取可见按钮时出错: " + e.message);
+    }
+
+    return visibleButtons;
+};
+
+/**
+ * 从物流详情页获取店铺名称（只使用"店铺名称"精确匹配，带重试机制）
+ * @param {Object} window 悬浮窗对象
+ * @returns {string|null} 店铺名称
+ */
+DeliveryTracking.prototype.getShopNameFromLogisticsPage = function(window) {
+    logger.addLog(window, "正在获取物流详情页的店铺名称...");
+
+    var maxRetries = 3;
+    var retryDelay = 1000; // 1秒重试间隔
+
+    for (var retry = 0; retry < maxRetries; retry++) {
+        if (retry > 0) {
+            logger.addLog(window, "第 " + (retry + 1) + " 次尝试获取店铺名称...");
+            waitTimeManager.wait(retryDelay);
+        }
+
+        try {
+            // 方法1：通过descContains查找包含"店铺名称"的元素
+            var shopDescElements = descContains("店铺名称").find();
+            if (shopDescElements.length > 0) {
+                var shopDesc = shopDescElements[0].desc();
+                logger.addLog(window, "通过descContains('店铺名称')找到desc: " + shopDesc);
+
+                // 提取店铺名称（去掉"店铺名称："前缀）
+                if (shopDesc && shopDesc.includes("店铺名称：")) {
+                    var shopName = shopDesc.replace("店铺名称：", "").trim();
+                    if (shopName) {
+                        logger.addLog(window, "✅ 通过descContains提取到店铺名称: " + shopName);
+                        return shopName;
+                    }
+                }
+            }
+
+            // 方法2：通过textContains查找包含"店铺名称"的元素
+            var shopTextElements = textContains("店铺名称").find();
+            if (shopTextElements.length > 0) {
+                var shopText = shopTextElements[0].text();
+                logger.addLog(window, "通过textContains('店铺名称')找到text: " + shopText);
+
+                if (shopText && shopText.includes("店铺名称：")) {
+                    var shopName = shopText.replace("店铺名称：", "").trim();
+                    if (shopName) {
+                        logger.addLog(window, "✅ 通过textContains提取到店铺名称: " + shopName);
+                        return shopName;
+                    }
+                }
+            }
+
+            // 方法3：遍历所有TextView元素，查找包含"店铺名称："的内容
+            logger.addLog(window, "尝试遍历所有TextView元素查找店铺名称...");
+            var allElements = className("android.widget.TextView").find();
+
+            for (var i = 0; i < allElements.length; i++) {
+                var element = allElements[i];
+                var text = element.text() || "";
+                var desc = element.desc() || "";
+
+                // 检查desc中的店铺名称
+                if (desc && desc.includes("店铺名称：")) {
+                    var shopName = desc.replace("店铺名称：", "").trim();
+                    if (shopName) {
+                        logger.addLog(window, "✅ 通过遍历desc提取到店铺名称: " + shopName);
+                        return shopName;
+                    }
+                }
+
+                // 检查text中的店铺名称
+                if (text && text.includes("店铺名称：")) {
+                    var shopName = text.replace("店铺名称：", "").trim();
+                    if (shopName) {
+                        logger.addLog(window, "✅ 通过遍历text提取到店铺名称: " + shopName);
+                        return shopName;
+                    }
+                }
+            }
+
+            if (retry < maxRetries - 1) {
+                logger.addLog(window, "第 " + (retry + 1) + " 次尝试未找到店铺名称，准备重试...");
+            }
+
+        } catch (e) {
+            logger.addLog(window, "第 " + (retry + 1) + " 次获取店铺名称时出错: " + e.message);
+            if (retry < maxRetries - 1) {
+                logger.addLog(window, "准备重试...");
+            }
+        }
+    }
+
+    logger.addLog(window, "❌ 经过 " + maxRetries + " 次尝试仍未找到店铺名称");
+    return null;
+};
+
+/**
  * 查找待收货商品元素（保留原方法作为备用）
  * @returns {Array} 商品元素数组
  */
@@ -310,32 +612,150 @@ DeliveryTracking.prototype.findDeliveryElements = function() {
 };
 
 /**
- * 在物流详情页提取快递信息（支持滚动获取所有单号）
+ * 在物流详情页提取快递信息（通过点击复制按钮获取）
  * @param {Object} window 悬浮窗对象
  * @param {number} index 商品索引
  * @returns {Array} 快递信息数组
  */
 DeliveryTracking.prototype.extractDeliveryInfoFromLogisticsPage = function(window, index) {
-    logger.addLog(window, "正在从第 " + index + " 个物流详情页提取所有快递信息...");
+    logger.addLog(window, "正在从第 " + index + " 个物流详情页提取快递信息...");
 
     try {
+        var deliveryInfos = [];
+        var processedTrackingNumbers = new Set(); // 用于去重
+
         // 等待页面加载完成
         waitTimeManager.wait('short');
 
-        // 通过点击复制按钮获取所有快递单号（支持滚动和去重）
-        var deliveryInfos = this.getAllTrackingNumbersByCopyButton(window);
+        // 保存当前剪贴板内容
+        var originalClipboard = "";
+        try {
+            originalClipboard = getClip();
+        } catch (e) {
+            logger.addLog(window, "无法获取当前剪贴板内容");
+        }
+
+        // 查找页面中的复制按钮
+        var copyButtons = this.findCopyButtons(window);
+
+        if (copyButtons.length === 0) {
+            logger.addLog(window, "未找到复制按钮");
+            return deliveryInfos;
+        }
+
+        logger.addLog(window, "找到 " + copyButtons.length + " 个复制按钮");
+
+        // 点击所有复制按钮获取快递单号
+        for (var i = 0; i < copyButtons.length && !GlobalStopManager.isStopRequested(); i++) {
+            logger.addLog(window, "尝试点击第 " + (i + 1) + " 个复制按钮");
+
+            if (safeClick(copyButtons[i])) {
+                logger.addLog(window, "成功点击第 " + (i + 1) + " 个复制按钮");
+
+                // 等待复制操作完成
+                waitTimeManager.wait('short');
+
+                // 获取复制后的剪贴板内容
+                try {
+                    var newClipboard = getClip();
+
+                    if (newClipboard && newClipboard !== originalClipboard) {
+                        logger.addLog(window, "剪贴板内容已更新: " + newClipboard);
+
+                        // 验证是否为快递单号
+                        var trackingNumber = this.extractTrackingNumberFromText(newClipboard);
+                        if (trackingNumber && !processedTrackingNumbers.has(trackingNumber)) {
+                            processedTrackingNumbers.add(trackingNumber);
+
+                            // 根据单号识别快递公司
+                            var company = this.identifyExpressCompanyByTrackingNumber(trackingNumber);
+                            if (!company) {
+                                // 如果根据单号无法识别，尝试从页面查找
+                                company = this.findExpressCompanyInPage(window);
+                            }
+
+                            var deliveryInfo = {
+                                company: company || "未知快递",
+                                trackingNumber: trackingNumber,
+                                index: deliveryInfos.length + 1
+                            };
+
+                            deliveryInfos.push(deliveryInfo);
+                            logger.addLog(window, "✅ 获取到快递信息: " + deliveryInfo.company + " - " + trackingNumber);
+                        } else if (trackingNumber) {
+                            logger.addLog(window, "快递单号已存在，跳过: " + trackingNumber);
+                        } else {
+                            logger.addLog(window, "复制的内容不是有效的快递单号: " + newClipboard);
+                        }
+
+                        // 更新原始剪贴板内容
+                        originalClipboard = newClipboard;
+                    } else {
+                        logger.addLog(window, "剪贴板内容未发生变化");
+                    }
+                } catch (e) {
+                    logger.addLog(window, "获取剪贴板内容失败: " + e.message);
+                }
+            } else {
+                logger.addLog(window, "点击第 " + (i + 1) + " 个复制按钮失败");
+            }
+
+            // 短暂等待，避免操作过快
+            waitTimeManager.wait('short');
+        }
 
         if (deliveryInfos.length > 0) {
             logger.addLog(window, "✅ 第 " + index + " 个商品共获取到 " + deliveryInfos.length + " 个快递信息");
-            return deliveryInfos;
         } else {
             logger.addLog(window, "⚠️ 第 " + index + " 个商品未找到快递信息");
-            return [];
         }
+
+        return deliveryInfos;
 
     } catch (e) {
         logger.addLog(window, "提取第 " + index + " 个商品快递信息时出错: " + e.message);
         return [];
+    }
+};
+
+/**
+ * 获取按钮的唯一标识符（用于去重）
+ * @param {Object} button 按钮元素
+ * @returns {string} 按钮标识符
+ */
+DeliveryTracking.prototype.getButtonIdentifier = function(button) {
+    try {
+        // 使用按钮的位置和文本作为唯一标识
+        var bounds = button.bounds();
+        var text = button.text() || button.desc() || "";
+        return bounds.left + "_" + bounds.top + "_" + text;
+    } catch (e) {
+        // 如果获取失败，使用随机数
+        return Math.random().toString();
+    }
+};
+
+/**
+ * 在待收货页面向下滚动
+ * @param {Object} window 悬浮窗对象
+ */
+DeliveryTracking.prototype.scrollDownInDeliveryPage = function(window) {
+    logger.addLog(window, "在待收货页面向下滚动...");
+
+    try {
+        var screenHeight = device.height;
+        var screenWidth = device.width;
+
+        // 在页面中部向下滚动
+        var startY = screenHeight * 0.7;
+        var endY = screenHeight * 0.3;
+
+        swipe(screenWidth / 2, startY, screenWidth / 2, endY, 800);
+
+        logger.addLog(window, "待收货页面滚动操作完成");
+
+    } catch (e) {
+        logger.addLog(window, "滚动待收货页面时出错: " + e.message);
     }
 };
 
@@ -389,15 +809,17 @@ DeliveryTracking.prototype.extractDeliveryInfoFromContainer = function(window, c
 };
 
 /**
- * 通过点击复制按钮获取快递单号（简化版，不滚动）
+ * 通过点击复制按钮获取所有快递单号（支持滚动和去重）
  * @param {Object} window 悬浮窗对象
  * @returns {Array} 快递信息数组
  */
 DeliveryTracking.prototype.getAllTrackingNumbersByCopyButton = function(window) {
-    logger.addLog(window, "通过点击复制按钮获取快递单号...");
+    logger.addLog(window, "通过点击复制按钮获取所有快递单号...");
 
     var allDeliveryInfos = [];
     var processedTrackingNumbers = new Set(); // 用于去重
+    var maxScrollAttempts = 5; // 最大滚动次数
+    var scrollAttempt = 0;
 
     try {
         // 保存当前剪贴板内容
@@ -408,79 +830,101 @@ DeliveryTracking.prototype.getAllTrackingNumbersByCopyButton = function(window) 
             logger.addLog(window, "无法获取当前剪贴板内容");
         }
 
-        // 查找当前页面的复制按钮
-        var copyButtons = this.findCopyButtons(window);
+        while (scrollAttempt < maxScrollAttempts && !GlobalStopManager.isStopRequested()) {
+            logger.addLog(window, "第 " + (scrollAttempt + 1) + " 次扫描页面...");
 
-        if (copyButtons.length === 0) {
-            logger.addLog(window, "未找到复制按钮");
-            return allDeliveryInfos;
-        }
+            // 查找当前页面的复制按钮
+            var copyButtons = this.findCopyButtons(window);
 
-        logger.addLog(window, "找到 " + copyButtons.length + " 个复制按钮");
-
-        // 点击所有复制按钮获取快递单号
-        for (var i = 0; i < copyButtons.length; i++) {
-            if (GlobalStopManager.isStopRequested()) break;
-
-            logger.addLog(window, "尝试点击第 " + (i + 1) + " 个复制按钮");
-
-            if (safeClick(copyButtons[i])) {
-                logger.addLog(window, "成功点击第 " + (i + 1) + " 个复制按钮");
-
-                // 等待复制操作完成
-                waitTimeManager.wait('short');
-
-                // 获取复制后的剪贴板内容
-                try {
-                    var newClipboard = getClip();
-
-                    if (newClipboard && newClipboard !== originalClipboard) {
-                        logger.addLog(window, "剪贴板内容已更新: " + newClipboard);
-
-                        // 验证是否为快递单号
-                        var trackingNumber = this.extractTrackingNumberFromText(newClipboard);
-                        if (trackingNumber && !processedTrackingNumbers.has(trackingNumber)) {
-                            processedTrackingNumbers.add(trackingNumber);
-
-                            // 根据单号识别快递公司
-                            var company = this.identifyExpressCompanyByTrackingNumber(trackingNumber);
-                            if (!company) {
-                                // 如果根据单号无法识别，尝试从页面查找
-                                company = this.findExpressCompanyInPage(window);
-                            }
-
-                            var deliveryInfo = {
-                                company: company || "未知快递",
-                                trackingNumber: trackingNumber,
-                                index: allDeliveryInfos.length + 1
-                            };
-
-                            allDeliveryInfos.push(deliveryInfo);
-
-                            logger.addLog(window, "✅ 获取到快递信息: " + deliveryInfo.company + " - " + trackingNumber);
-                        } else if (trackingNumber) {
-                            logger.addLog(window, "快递单号已存在，跳过: " + trackingNumber);
-                        } else {
-                            logger.addLog(window, "复制的内容不是有效的快递单号: " + newClipboard);
-                        }
-
-                        // 更新原始剪贴板内容
-                        originalClipboard = newClipboard;
-                    } else {
-                        logger.addLog(window, "剪贴板内容未发生变化");
-                    }
-                } catch (e) {
-                    logger.addLog(window, "获取剪贴板内容失败: " + e.message);
-                }
-            } else {
-                logger.addLog(window, "点击第 " + (i + 1) + " 个复制按钮失败");
+            if (copyButtons.length === 0) {
+                logger.addLog(window, "未找到复制按钮");
+                break;
             }
 
-            // 短暂等待，避免操作过快
-            waitTimeManager.wait('short');
+            logger.addLog(window, "找到 " + copyButtons.length + " 个复制按钮");
+
+            var foundNewTrackingNumber = false;
+
+            // 点击所有复制按钮获取快递单号
+            for (var i = 0; i < copyButtons.length; i++) {
+                if (GlobalStopManager.isStopRequested()) break;
+
+                logger.addLog(window, "尝试点击第 " + (i + 1) + " 个复制按钮");
+
+                if (safeClick(copyButtons[i])) {
+                    logger.addLog(window, "成功点击第 " + (i + 1) + " 个复制按钮");
+
+                    // 等待复制操作完成
+                    waitTimeManager.wait('short');
+
+                    // 获取复制后的剪贴板内容
+                    try {
+                        var newClipboard = getClip();
+
+                        if (newClipboard && newClipboard !== originalClipboard) {
+                            logger.addLog(window, "剪贴板内容已更新: " + newClipboard);
+
+                            // 验证是否为快递单号
+                            var trackingNumber = this.extractTrackingNumberFromText(newClipboard);
+                            if (trackingNumber && !processedTrackingNumbers.has(trackingNumber)) {
+                                processedTrackingNumbers.add(trackingNumber);
+
+                                // 根据单号识别快递公司
+                                var company = this.identifyExpressCompanyByTrackingNumber(trackingNumber);
+                                if (!company) {
+                                    // 如果根据单号无法识别，尝试从页面查找
+                                    company = this.findExpressCompanyInPage(window);
+                                }
+
+                                var deliveryInfo = {
+                                    company: company || "未知快递",
+                                    trackingNumber: trackingNumber,
+                                    index: allDeliveryInfos.length + 1
+                                };
+
+                                allDeliveryInfos.push(deliveryInfo);
+                                foundNewTrackingNumber = true;
+
+                                logger.addLog(window, "✅ 获取到快递信息: " + deliveryInfo.company + " - " + trackingNumber);
+                            } else if (trackingNumber) {
+                                logger.addLog(window, "快递单号已存在，跳过: " + trackingNumber);
+                            } else {
+                                logger.addLog(window, "复制的内容不是有效的快递单号: " + newClipboard);
+                            }
+
+                            // 更新原始剪贴板内容
+                            originalClipboard = newClipboard;
+                        } else {
+                            logger.addLog(window, "剪贴板内容未发生变化");
+                        }
+                    } catch (e) {
+                        logger.addLog(window, "获取剪贴板内容失败: " + e.message);
+                    }
+                } else {
+                    logger.addLog(window, "点击第 " + (i + 1) + " 个复制按钮失败");
+                }
+
+                // 短暂等待，避免操作过快
+                waitTimeManager.wait('short');
+            }
+
+            // 如果没有找到新的快递单号，尝试滚动页面
+            if (!foundNewTrackingNumber) {
+                logger.addLog(window, "未找到新的快递单号，尝试向下滚动...");
+                this.scrollDownInLogisticsPage(window);
+                waitTimeManager.wait('pageStable');
+            }
+
+            scrollAttempt++;
+
+            // 如果连续几次都没有找到新的单号，可能已经到底了
+            if (!foundNewTrackingNumber && scrollAttempt >= 2) {
+                logger.addLog(window, "连续未找到新单号，可能已扫描完所有内容");
+                break;
+            }
         }
 
-        logger.addLog(window, "获取完成，共获取到 " + allDeliveryInfos.length + " 个快递信息");
+        logger.addLog(window, "扫描完成，共获取到 " + allDeliveryInfos.length + " 个不重复的快递信息");
         return allDeliveryInfos;
 
     } catch (e) {
@@ -550,30 +994,6 @@ DeliveryTracking.prototype.findCopyButtons = function(window) {
 };
 
 /**
- * 在待收货页面向下滚动
- * @param {Object} window 悬浮窗对象
- */
-DeliveryTracking.prototype.scrollDownInDeliveryListPage = function(window) {
-    logger.addLog(window, "在待收货页面向下滚动...");
-
-    try {
-        var screenHeight = device.height;
-        var screenWidth = device.width;
-
-        // 在待收货页面向下滚动，从屏幕的80%位置滚动到30%位置
-        var startY = screenHeight * 0.8;
-        var endY = screenHeight * 0.3;
-
-        swipe(screenWidth / 2, startY, screenWidth / 2, endY, 1000);
-
-        logger.addLog(window, "待收货页面滚动操作完成");
-
-    } catch (e) {
-        logger.addLog(window, "滚动待收货页面时出错: " + e.message);
-    }
-};
-
-/**
  * 在物流详情页向下滚动
  * @param {Object} window 悬浮窗对象
  */
@@ -584,19 +1004,13 @@ DeliveryTracking.prototype.scrollDownInLogisticsPage = function(window) {
         var screenHeight = device.height;
         var screenWidth = device.width;
 
-        // 执行多次小幅度滚动，确保能看到更多内容
-        for (var i = 0; i < 3; i++) {
-            // 从屏幕的70%位置滚动到20%位置，滚动幅度更大
-            var startY = screenHeight * 0.7;
-            var endY = screenHeight * 0.2;
+        // 在页面中部向下滚动
+        var startY = screenHeight * 0.6;
+        var endY = screenHeight * 0.3;
 
-            swipe(screenWidth / 2, startY, screenWidth / 2, endY, 800);
+        swipe(screenWidth / 2, startY, screenWidth / 2, endY, 500);
 
-            // 每次滚动后稍作等待
-            waitTimeManager.wait('short');
-        }
-
-        logger.addLog(window, "完成3次滚动操作");
+        logger.addLog(window, "滚动操作完成");
 
     } catch (e) {
         logger.addLog(window, "滚动页面时出错: " + e.message);
@@ -838,22 +1252,81 @@ DeliveryTracking.prototype.findTrackingNumberInPage = function() {
 DeliveryTracking.prototype.extractTrackingNumberFromText = function(text) {
     if (!text) return null;
 
-    // 常见的物流单号格式正则表达式
+    // 排除订单编号等非快递单号的内容
+    if (this.isOrderNumber(text)) {
+        return null;
+    }
+
+    // 常见的物流单号格式正则表达式（优先匹配带前缀的完整单号）
     var patterns = [
-        /\d{10,}/g,  // 10位以上数字
-        /[A-Z]{2}\d{9,}/g,  // 两个字母+9位以上数字（如YT开头的圆通）
-        /[a-zA-Z]{2}\d{9,}/g,  // 两个字母+9位以上数字（如jt开头的极兔）
+        /[A-Z]{2}\d{9,}/g,  // 两个大写字母+9位以上数字（如YT开头的圆通、JT开头的极兔）
+        /[a-zA-Z]{2}\d{9,}/g,  // 两个字母+9位以上数字（如jt开头的极兔，大小写混合）
+        /SF\d{10,}/gi,  // 顺丰快递（SF开头，不区分大小写）
+        /\d{10,}/g,  // 10位以上纯数字（放在最后，避免截断带前缀的单号）
         /\d{4}\s?\d{4}\s?\d{4}/g,  // 分段数字格式
     ];
 
     for (var i = 0; i < patterns.length; i++) {
         var matches = text.match(patterns[i]);
         if (matches && matches.length > 0) {
-            return matches[0].replace(/\s/g, ''); // 移除空格
+            var trackingNumber = matches[0].replace(/\s/g, ''); // 移除空格
+
+            // 验证提取的单号是否合理（长度检查）
+            if (trackingNumber.length >= 10) {
+                return trackingNumber;
+            }
         }
     }
 
     return null;
+};
+
+/**
+ * 判断文本是否为订单编号而非快递单号
+ * @param {string} text 文本内容
+ * @returns {boolean} 是否为订单编号
+ */
+DeliveryTracking.prototype.isOrderNumber = function(text) {
+    if (!text) return false;
+
+    // 转换为小写进行检查
+    var lowerText = text.toLowerCase();
+
+    // 订单编号的特征关键词
+    var orderKeywords = [
+        "订单编号",
+        "订单号",
+        "order",
+        "订单",
+        "order number",
+        "order id",
+        "单号：",
+        "编号：",
+        "order:",
+        "订单:",
+        "单据编号",
+        "交易编号",
+        "支付编号"
+    ];
+
+    // 检查是否包含订单编号关键词
+    for (var i = 0; i < orderKeywords.length; i++) {
+        if (lowerText.includes(orderKeywords[i])) {
+            return true;
+        }
+    }
+
+    // 检查是否为特定的订单编号格式（如：250806-600616476241872）
+    if (/\d{6}-\d{15}/.test(text)) {
+        return true;
+    }
+
+    // 检查是否包含连字符分隔的数字格式（通常是订单编号）
+    if (/\d+-\d+/.test(text) && text.includes("-")) {
+        return true;
+    }
+
+    return false;
 };
 
 /**
@@ -867,19 +1340,9 @@ DeliveryTracking.prototype.identifyExpressCompanyByTrackingNumber = function(tra
     // 根据快递单号规律识别快递公司
     var upperTrackingNumber = trackingNumber.toUpperCase();
 
-    // 申通快递：6开头或7开头的数字
-    if (/^[67]\d{12,}$/.test(trackingNumber)) {
-        return "申通快递";
-    }
-
-    // 极兔快递：JT开头
+    // 极兔快递：JT开头（优先检查，避免被其他规则误判）
     if (/^JT\d{10,}$/i.test(upperTrackingNumber)) {
         return "极兔快递";
-    }
-
-    // 韵达快递：4开头的数字
-    if (/^4\d{12,}$/.test(trackingNumber)) {
-        return "韵达快递";
     }
 
     // 圆通快递：YT开头
@@ -887,14 +1350,37 @@ DeliveryTracking.prototype.identifyExpressCompanyByTrackingNumber = function(tra
         return "圆通快递";
     }
 
-    // 中通快递：通常以数字开头，长度12-15位
-    if (/^[1-9]\d{11,14}$/.test(trackingNumber) && !trackingNumber.startsWith('4') && !trackingNumber.startsWith('6') && !trackingNumber.startsWith('7')) {
+    // 顺丰快递：SF开头
+    if (/^SF\d{10,}$/i.test(upperTrackingNumber)) {
+        return "顺丰快递";
+    }
+
+    // 申通快递：6开头或7开头的数字
+    if (/^[67]\d{12,}$/.test(trackingNumber)) {
+        return "申通快递";
+    }
+
+    // 韵达快递：4开头的数字
+    if (/^4\d{12,}$/.test(trackingNumber)) {
+        return "韵达快递";
+    }
+
+    // 中通快递：通常以数字开头，长度12-15位（排除其他已知规则）
+    if (/^[1-9]\d{11,14}$/.test(trackingNumber) &&
+        !trackingNumber.startsWith('4') &&
+        !trackingNumber.startsWith('6') &&
+        !trackingNumber.startsWith('7')) {
         return "中通快递";
     }
 
-    // 顺丰快递：SF开头或特定数字格式
-    if (/^SF\d{10,}$/i.test(upperTrackingNumber)) {
-        return "顺丰快递";
+    // EMS/邮政：特定格式
+    if (/^[A-Z]{2}\d{9}[A-Z]{2}$/i.test(upperTrackingNumber)) {
+        return "邮政EMS";
+    }
+
+    // 百世快递：特定格式
+    if (/^[A-Z]\d{12}$/i.test(upperTrackingNumber)) {
+        return "百世快递";
     }
 
     return null;
@@ -984,6 +1470,15 @@ DeliveryTracking.prototype.displayResults = function(window, deliveryInfos) {
     for (var i = 0; i < deliveryInfos.length; i++) {
         var info = deliveryInfos[i];
         var displayText = (i + 1) + ". ";
+
+        // 添加商品名称（如果有）
+        if (info.productName) {
+            // 截取商品名称前30个字符，避免显示过长
+            var shortProductName = info.productName.length > 30 ?
+                info.productName.substring(0, 30) + "..." :
+                info.productName;
+            displayText += "[" + shortProductName + "] ";
+        }
 
         if (info.company) {
             displayText += info.company;
