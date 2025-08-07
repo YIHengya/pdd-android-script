@@ -5,6 +5,7 @@
 
 const ProductPurchase = require('../modules/product-purchase.js');
 const ProductFavorite = require('../modules/product-favorite.js');
+const FavoriteSettlement = require('../modules/favorite-settlement.js');
 const AutoPayment = require('../modules/auto-payment.js');
 const UserInfo = require('../modules/user-info.js');
 const UserInfoManager = require('../utils/user-info-manager.js');
@@ -17,6 +18,7 @@ function MainUI() {
     this.floatingWindow = null;
     this.productPurchase = null;
     this.productFavorite = null;
+    this.favoriteSettlement = null;
     this.autoPayment = null;
     this.userInfo = null;
     this.userInfoManager = null; // 用户信息管理器
@@ -218,6 +220,7 @@ MainUI.prototype.initializeModules = function() {
 
     this.productPurchase = new ProductPurchase();
     this.productFavorite = new ProductFavorite();
+    this.favoriteSettlement = new FavoriteSettlement();
     this.autoPayment = new AutoPayment();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
@@ -457,6 +460,10 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     self.addLog("执行模式: 批量收藏");
                     self.addLog("收藏数量: " + purchaseQuantity + "件");
                     self.productFavorite.execute(window, priceRange, userName, purchaseQuantity);
+                } else if (mode === 'favoriteSettlement') {
+                    // 执行收藏结算功能
+                    self.addLog("执行模式: 收藏结算");
+                    self.favoriteSettlement.execute(window, userName);
                 } else {
                     // 执行购买功能
                     self.addLog("执行模式: 自动购买");

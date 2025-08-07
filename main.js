@@ -9,6 +9,7 @@ const { COMMON_CONFIG } = require('./config/app-config.js');
 const FloatingWindow = require('./ui/floating-window.js');
 const ProductPurchase = require('./modules/product-purchase.js');
 const ProductFavorite = require('./modules/product-favorite.js');
+const FavoriteSettlement = require('./modules/favorite-settlement.js');
 const AutoPayment = require('./modules/auto-payment.js');
 const UserInfo = require('./modules/user-info.js');
 const UserInfoManager = require('./utils/user-info-manager.js');
@@ -38,6 +39,7 @@ MainApp.prototype.init = function() {
     this.floatingWindow = new FloatingWindow();
     this.productPurchase = new ProductPurchase();
     this.productFavorite = new ProductFavorite();
+    this.favoriteSettlement = new FavoriteSettlement();
     this.autoPayment = new AutoPayment();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
@@ -97,6 +99,10 @@ MainApp.prototype.setupCallbacks = function() {
                     logger.addLog(window, "执行模式: 批量收藏");
                     logger.addLog(window, "收藏数量: " + purchaseQuantity + "件");
                     self.productFavorite.execute(window, priceRange, userName, purchaseQuantity);
+                } else if (mode === 'favoriteSettlement') {
+                    // 执行收藏结算功能
+                    logger.addLog(window, "执行模式: 收藏结算");
+                    self.favoriteSettlement.execute(window, userName);
                 } else {
                     // 执行购买功能，传入用户名和购买数量
                     logger.addLog(window, "执行模式: 自动购买 (默认或其他模式)");
