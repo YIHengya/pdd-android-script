@@ -1385,9 +1385,14 @@ DeliveryTracking.prototype.identifyExpressCompanyByTrackingNumber = function(tra
         return "顺丰快递";
     }
 
-    // 申通快递：6开头或7开头的数字
-    if (/^[67]\d{12,}$/.test(trackingNumber)) {
+    // 申通快递：77开头的数字
+    if (/^77\d{10,}$/.test(trackingNumber)) {
         return "申通快递";
+    }
+
+    // 中通快递：78开头的数字
+    if (/^78\d{10,}$/.test(trackingNumber)) {
+        return "中通快递";
     }
 
     // 韵达快递：4开头的数字
@@ -1403,8 +1408,8 @@ DeliveryTracking.prototype.identifyExpressCompanyByTrackingNumber = function(tra
     // 中通快递：通常以数字开头，长度12-15位（排除其他已知规则）
     if (/^[1-9]\d{11,14}$/.test(trackingNumber) &&
         !trackingNumber.startsWith('4') &&
-        !trackingNumber.startsWith('6') &&
-        !trackingNumber.startsWith('7') &&
+        !trackingNumber.startsWith('77') &&
+        !trackingNumber.startsWith('78') &&
         !trackingNumber.startsWith('98')) {
         return "中通快递";
     }
@@ -1445,32 +1450,88 @@ DeliveryTracking.prototype.refreshPage = function(window) {
 DeliveryTracking.prototype.copyDeliveryInfosToClipboard = function(window, deliveryInfos) {
     if (deliveryInfos.length === 0) return;
 
-    var clipboardLines = [];
+    // 按快递公司分组
+    var groupedByCompany = {};
 
+    // 定义快递公司的排序优先级
+    var companyOrder = [
+        "顺丰快递",
+        "京东快递",
+        "邮政快递",
+        "邮政EMS",
+        "中通快递",
+        "圆通快递",
+        "申通快递",
+        "韵达快递",
+        "极兔快递",
+        "百世快递",
+        "德邦快递",
+        "菜鸟快递",
+        "天天快递",
+        "宅急送",
+        "未知快递"
+    ];
+
+    // 将快递信息按公司分组
     for (var i = 0; i < deliveryInfos.length; i++) {
         var info = deliveryInfos[i];
-        var line = "";
+        var company = info.company || "未知快递";
 
-        if (info.company) {
-            line += info.company;
+        if (!groupedByCompany[company]) {
+            groupedByCompany[company] = [];
         }
+        groupedByCompany[company].push(info);
+    }
 
-        if (info.trackingNumber) {
-            if (line) line += " - ";
-            line += info.trackingNumber;
-        }
+    var clipboardLines = [];
 
-        if (line) {
-            clipboardLines.push(line);
+    // 按预定义的顺序输出各个快递公司的信息
+    for (var j = 0; j < companyOrder.length; j++) {
+        var company = companyOrder[j];
+        if (groupedByCompany[company] && groupedByCompany[company].length > 0) {
+            // 添加快递公司标题
+            clipboardLines.push("【" + company + "】");
+
+            // 添加该公司的所有快递单号
+            for (var k = 0; k < groupedByCompany[company].length; k++) {
+                var info = groupedByCompany[company][k];
+                if (info.trackingNumber) {
+                    clipboardLines.push(info.trackingNumber);
+                }
+            }
+
+            // 添加空行分隔不同公司
+            clipboardLines.push("");
         }
+    }
+
+    // 处理不在预定义列表中的其他快递公司
+    for (var company in groupedByCompany) {
+        if (companyOrder.indexOf(company) === -1 && groupedByCompany[company].length > 0) {
+            clipboardLines.push("【" + company + "】");
+
+            for (var k = 0; k < groupedByCompany[company].length; k++) {
+                var info = groupedByCompany[company][k];
+                if (info.trackingNumber) {
+                    clipboardLines.push(info.trackingNumber);
+                }
+            }
+
+            clipboardLines.push("");
+        }
+    }
+
+    // 移除最后的空行
+    if (clipboardLines.length > 0 && clipboardLines[clipboardLines.length - 1] === "") {
+        clipboardLines.pop();
     }
 
     var clipboardText = clipboardLines.join('\n');
 
     try {
         setClip(clipboardText);
-        logger.addLog(window, "✅ 快递信息已复制到剪贴板");
-        toast("快递信息已复制到剪贴板");
+        logger.addLog(window, "✅ 快递信息已按公司分组复制到剪贴板");
+        toast("快递信息已按公司分组复制到剪贴板");
     } catch (e) {
         logger.addLog(window, "❌ 复制到剪贴板失败: " + e.message);
     }
