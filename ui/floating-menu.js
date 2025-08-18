@@ -141,11 +141,11 @@ FloatingMenu.prototype.create = function() {
                         <horizontal gravity="center">
                             <button id="purchaseModeBtn" text="购买模式" textColor="#ffffff" bg="#2196F3"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
-                            <button id="paymentModeBtn" text="支付模式" textColor="#666666" bg="#E0E0E0"
-                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="favoriteModeBtn" text="收藏模式" textColor="#666666" bg="#E0E0E0"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="favoriteSettlementModeBtn" text="收藏结算" textColor="#666666" bg="#E0E0E0"
+                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
+                            <button id="paymentModeBtn" text="支付模式" textColor="#666666" bg="#E0E0E0"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="deliveryModeBtn" text="待收货" textColor="#666666" bg="#E0E0E0"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>

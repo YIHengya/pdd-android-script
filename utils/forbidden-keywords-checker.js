@@ -27,7 +27,9 @@ function ForbiddenKeywordsChecker() {
         "请勿拍",
         "不要拍",
         "禁止拍",
-        "联系客服"
+        "联系客服",
+        "无需下单",
+        "预售"
     ];
 }
 
