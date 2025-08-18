@@ -53,17 +53,6 @@ FavoriteNavigation.prototype.goToFavoritePage = function(window) {
         return true;
     }
 
-    // 检查停止状态
-    if (GlobalStopManager.isStopRequested()) {
-        logger.addLog(window, "🛑 检测到停止信号，终止收藏页面导航");
-        return false;
-    }
-
-    // 方法4: 通过搜索功能寻找收藏
-    if (this.navigateViaSearch(window)) {
-        return true;
-    }
-
     logger.addLog(window, "❌ 所有导航方法都失败了");
     return false;
 };
@@ -234,114 +223,6 @@ FavoriteNavigation.prototype.navigateViaBottomNavigation = function(window) {
         logger.addLog(window, "通过底部导航栏导航失败: " + e.message);
         return false;
     }
-};
-
-/**
- * 通过搜索导航到收藏页面
- * @param {Object} window 悬浮窗对象
- * @returns {boolean} 是否成功
- */
-FavoriteNavigation.prototype.navigateViaSearch = function(window) {
-    logger.addLog(window, "尝试通过搜索导航到收藏页面...");
-
-    try {
-        // 先回到主页
-        var HomeNavigation = require('./home-navigation.js');
-        var homeNav = new HomeNavigation();
-        
-        if (!homeNav.goToHomePage(window)) {
-            logger.addLog(window, "无法回到主页");
-            return false;
-        }
-
-        waitTimeManager.wait('pageLoad');
-
-        // 寻找搜索框
-        var searchSelectors = [
-            text("搜索"),
-            textContains("搜索"),
-            desc("搜索"),
-            descContains("搜索"),
-            id("search"),
-            className("android.widget.EditText"),
-            className("android.widget.TextView").textContains("搜索")
-        ];
-
-        var searchButton = findAnyElement(searchSelectors);
-        if (searchButton) {
-            logger.addLog(window, "找到搜索按钮，尝试搜索收藏相关内容");
-            if (safeClick(searchButton)) {
-                waitTimeManager.wait('pageStable');
-
-                // 输入搜索关键词
-                var searchInput = className("android.widget.EditText").findOne(2000);
-                if (searchInput) {
-                    searchInput.setText("我的收藏");
-                    waitTimeManager.wait('pageStable');
-
-                    // 点击搜索或回车
-                    var searchConfirm = text("搜索").findOne(1000);
-                    if (searchConfirm) {
-                        safeClick(searchConfirm);
-                    } else {
-                        // 尝试按回车键
-                        searchInput.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_IME_ENTER);
-                    }
-
-                    waitTimeManager.wait('back');
-
-                    // 在搜索结果中查找收藏相关内容
-                    if (this.findAndClickFavoriteInSearchResults(window)) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        logger.addLog(window, "通过搜索进入收藏页面失败");
-        return false;
-
-    } catch (e) {
-        logger.addLog(window, "通过搜索导航失败: " + e.message);
-        return false;
-    }
-};
-
-/**
- * 在搜索结果中查找并点击收藏相关内容
- * @param {Object} window 悬浮窗对象
- * @returns {boolean} 是否成功
- */
-FavoriteNavigation.prototype.findAndClickFavoriteInSearchResults = function(window) {
-    logger.addLog(window, "在搜索结果中查找收藏相关内容...");
-
-    var favoriteKeywords = [
-        "我的收藏",
-        "收藏夹",
-        "收藏商品",
-        "收藏的商品",
-        "收藏列表"
-    ];
-
-    for (var i = 0; i < favoriteKeywords.length; i++) {
-        var keyword = favoriteKeywords[i];
-        var elements = textContains(keyword).find();
-        
-        for (var j = 0; j < elements.length; j++) {
-            var element = elements[j];
-            logger.addLog(window, "尝试点击: " + element.text());
-            
-            if (safeClick(element)) {
-                waitTimeManager.wait('pageLoad');
-                if (this.isAtFavoritePage(window)) {
-                    logger.addLog(window, "✅ 成功通过搜索结果进入收藏页面");
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
 };
 
 /**
