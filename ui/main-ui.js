@@ -11,6 +11,7 @@ const DeliveryTracking = require('../modules/delivery-tracking.js');
 const UserInfo = require('../modules/user-info.js');
 const UserInfoManager = require('../utils/user-info-manager.js');
 const FloatingWindow = require('./floating-window.js');
+const { waitTimeManager } = require('../utils/wait-time-manager.js');
 
 /**
  * 主界面构造函数
@@ -26,6 +27,7 @@ function MainUI() {
     this.userInfoManager = null; // 用户信息管理器
     this.isFloatingWindowActive = false;
     this.scriptThread = null;
+    this.currentMode = 'purchase'; // 默认为购买模式
 }
 
 /**
@@ -57,7 +59,6 @@ MainUI.prototype.show = function() {
                                 <text text="启用后将显示悬浮球，可在任意界面使用自动化功能" 
                                       textSize="12sp" textColor="#888888" margin="0 0 8dp 0"/>
                                       
-
                             </vertical>
                         </card>
 
@@ -66,10 +67,30 @@ MainUI.prototype.show = function() {
                             <vertical padding="16dp">
                                 <text text="功能设置" textSize="18sp" textStyle="bold" textColor="#333333" margin="0 0 12dp 0"/>
                                 
-                                <horizontal gravity="center_vertical" margin="0 0 8dp 0">
-                                    <text text="模式:" textSize="14sp" textColor="#666666" w="80dp"/>
-                                    <text text="购买模式" textSize="14sp" textColor="#2196F3" margin="8dp 0 0 0"/>
+                                <text id="currentModeDisplay" text="当前模式：商品购买模式" 
+                                      textSize="14sp" textColor="#333333" textStyle="bold" margin="0 0 8dp 0"/>
+                                
+                                <horizontal gravity="center" margin="0 0 8dp 0">
+                                    <button id="purchaseModeBtn" text="商品购买模式" textColor="#ffffff" bg="#2196F3"
+                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
+                                    <button id="favoriteModeBtn" text="商品收藏模式" textColor="#666666" bg="#E0E0E0"
+                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                 </horizontal>
+                                
+                                <horizontal gravity="center" margin="0 0 12dp 0">
+                                    <button id="favoriteSettlementModeBtn" text="收藏结算" textColor="#666666" bg="#E0E0E0"
+                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
+                                    <button id="paymentModeBtn" text="支付模式" textColor="#666666" bg="#E0E0E0"
+                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
+                                    <button id="deliveryModeBtn" text="待收货" textColor="#666666" bg="#E0E0E0"
+                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
+                                </horizontal>
+
+                                {/* 模式说明区域 */}
+                                <vertical id="modeDescriptionArea" margin="0 0 12dp 0" bg="#f5f5f5" padding="8dp">
+                                    <text id="modeDescription" text="自动寻找符合价格区间的商品并执行购买操作"
+                                          textSize="12sp" textColor="#666666"/>
+                                </vertical>
                                 
                                 <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                                     <text text="价格区间:" textSize="14sp" textColor="#666666" w="80dp"/>
@@ -101,6 +122,28 @@ MainUI.prototype.show = function() {
                                              max="99" progress="0" progressTint="#9C27B0" thumbTint="#9C27B0"/>
                                     <text id="quantityValue" text="1" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
                                 </horizontal>
+                            </vertical>
+                        </card>
+
+                        {/* 等待倍率设置区域 */}
+                        <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
+                            <vertical padding="16dp">
+                                <text text="等待时间设置" textSize="18sp" textStyle="bold" textColor="#333333" margin="0 0 12dp 0"/>
+                                
+                                <horizontal gravity="center_vertical" margin="0 0 5dp 0">
+                                    <text text="等待倍率:" textColor="#333333" textSize="14sp" w="60dp"/>
+                                    <text id="speedDisplay" text="标准模式 (1.0x)" textColor="#333333" textSize="14sp" textStyle="bold" layout_weight="1"/>
+                                </horizontal>
+
+                                <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                                    <text text="速度:" textColor="#666666" textSize="12sp" w="40dp"/>
+                                    <seekbar id="speedSeekbar" w="*" h="20dp" margin="0 4dp 0 4dp"
+                                             max="49" progress="9" progressTint="#FF9800" thumbTint="#FF9800"/>
+                                    <text id="speedText" text="1.0x" textColor="#666666" textSize="12sp" w="35dp" gravity="center"/>
+                                </horizontal>
+                                
+                                <text text="调整等待时间可以适应不同网络环境和手机性能" 
+                                      textSize="12sp" textColor="#888888" margin="0 4dp 0 0"/>
                             </vertical>
                         </card>
 
@@ -212,6 +255,26 @@ MainUI.prototype.show = function() {
 
     // 初始化模块
     this.initializeModules();
+    
+    // 初始化模式和等待倍率
+    this.initializeMode();
+    this.initializeSpeedDisplay();
+};
+
+/**
+ * 初始化模式
+ */
+MainUI.prototype.initializeMode = function() {
+    // 设置默认模式
+    this.switchToMode(this.currentMode);
+};
+
+/**
+ * 初始化等待时间倍率显示
+ */
+MainUI.prototype.initializeSpeedDisplay = function() {
+    var currentMultiplier = waitTimeManager.getSpeedMultiplier();
+    this.updateSpeedMultiplier(currentMultiplier);
 };
 
 /**
@@ -268,7 +331,37 @@ MainUI.prototype.setupEventHandlers = function() {
         }
     });
 
-
+    // 模式切换按钮事件处理
+    ui.purchaseModeBtn.click(function() {
+        self.switchToMode('purchase');
+    });
+    
+    ui.favoriteModeBtn.click(function() {
+        self.switchToMode('favorite');
+    });
+    
+    ui.favoriteSettlementModeBtn.click(function() {
+        self.switchToMode('favoriteSettlement');
+    });
+    
+    ui.paymentModeBtn.click(function() {
+        self.switchToMode('payment');
+    });
+    
+    ui.deliveryModeBtn.click(function() {
+        self.switchToMode('delivery');
+    });
+    
+    // 等待时间倍率滑动条事件处理
+    ui.speedSeekbar.setOnSeekBarChangeListener({
+        onProgressChanged: function(seekBar, progress, fromUser) {
+            if (fromUser) {
+                // 将进度值转换为倍率（0-49对应0.1-5.0）
+                var multiplier = 0.1 + (progress / 49.0) * 4.9;
+                self.updateSpeedMultiplier(multiplier);
+            }
+        }
+    });
 
     // 价格滑动条事件
     ui.minPriceSeek.setOnSeekBarChangeListener({
@@ -539,7 +632,7 @@ MainUI.prototype.startScript = function() {
         purchaseQuantity = 1;
     }
 
-    this.addLog("启动脚本: 购买模式");
+    this.addLog("启动脚本: " + ui.currentModeDisplay.getText());
     this.addLog("价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + "元");
     this.addLog("购买数量: " + purchaseQuantity + "件");
 
@@ -562,9 +655,23 @@ MainUI.prototype.startScript = function() {
                 });
             }
 
-            // 执行购买功能
-            var userName = self.getUserName();
-            self.productPurchase.execute(null, priceRange, userName, purchaseQuantity);
+            // 根据当前模式执行不同功能
+            if (self.currentMode === 'favorite') {
+                self.addLog("执行模式: 批量收藏");
+                self.productFavorite.execute(null, priceRange, self.getUserName(), purchaseQuantity);
+            } else if (self.currentMode === 'favoriteSettlement') {
+                self.addLog("执行模式: 收藏结算");
+                self.favoriteSettlement.execute(null, self.getUserName());
+            } else if (self.currentMode === 'payment') {
+                self.addLog("执行模式: 自动支付");
+                self.autoPayment.execute(null, self.getUserName());
+            } else if (self.currentMode === 'delivery') {
+                self.addLog("执行模式: 待收货物流追踪");
+                self.deliveryTracking.execute(null, self.getUserName());
+            } else { // 默认购买模式
+                self.addLog("执行模式: 自动购买");
+                self.productPurchase.execute(null, priceRange, self.getUserName(), purchaseQuantity);
+            }
 
         } catch (e) {
             ui.run(function() {
@@ -662,6 +769,73 @@ MainUI.prototype.updatePriceDisplay = function(minPrice, maxPrice) {
 MainUI.prototype.updateQuantityDisplay = function(quantity) {
     ui.quantityDisplay.setText(quantity + "件");
     ui.quantityValue.setText(quantity.toString());
+};
+
+/**
+ * 切换到指定模式
+ */
+MainUI.prototype.switchToMode = function(mode) {
+    var self = this;
+    this.currentMode = mode;
+    
+    // 重置所有按钮样式
+    ui.purchaseModeBtn.attr('textColor', '#666666');
+    ui.purchaseModeBtn.attr('bg', '#E0E0E0');
+    ui.favoriteModeBtn.attr('textColor', '#666666');
+    ui.favoriteModeBtn.attr('bg', '#E0E0E0');
+    ui.favoriteSettlementModeBtn.attr('textColor', '#666666');
+    ui.favoriteSettlementModeBtn.attr('bg', '#E0E0E0');
+    ui.paymentModeBtn.attr('textColor', '#666666');
+    ui.paymentModeBtn.attr('bg', '#E0E0E0');
+    ui.deliveryModeBtn.attr('textColor', '#666666');
+    ui.deliveryModeBtn.attr('bg', '#E0E0E0');
+    
+    // 设置当前模式按钮样式
+    if (mode === 'purchase') {
+        ui.purchaseModeBtn.attr('textColor', '#ffffff');
+        ui.purchaseModeBtn.attr('bg', '#2196F3');
+        ui.currentModeDisplay.setText("当前模式：商品购买模式");
+        ui.modeDescription.setText("自动寻找符合价格区间的商品并执行购买操作");
+    } else if (mode === 'favorite') {
+        ui.favoriteModeBtn.attr('textColor', '#ffffff');
+        ui.favoriteModeBtn.attr('bg', '#E91E63');
+        ui.currentModeDisplay.setText("当前模式：商品收藏模式");
+        ui.modeDescription.setText("自动批量收藏符合价格区间的商品到收藏夹");
+    } else if (mode === 'favoriteSettlement') {
+        ui.favoriteSettlementModeBtn.attr('textColor', '#ffffff');
+        ui.favoriteSettlementModeBtn.attr('bg', '#9C27B0');
+        ui.currentModeDisplay.setText("当前模式：收藏结算模式");
+        ui.modeDescription.setText("自动导航到收藏页面，查看收藏商品并进行结算");
+    } else if (mode === 'payment') {
+        ui.paymentModeBtn.attr('textColor', '#ffffff');
+        ui.paymentModeBtn.attr('bg', '#FF9800');
+        ui.currentModeDisplay.setText("当前模式：支付模式");
+        ui.modeDescription.setText("自动导航到待支付页面，检测待支付订单并准备支付流程");
+    } else if (mode === 'delivery') {
+        ui.deliveryModeBtn.attr('textColor', '#ffffff');
+        ui.deliveryModeBtn.attr('bg', '#FF5722');
+        ui.currentModeDisplay.setText("当前模式：待收货模式");
+        ui.modeDescription.setText("自动导航到待收货页面，批量获取物流单号并复制到剪贴板");
+    }
+    
+    this.addLog("已切换到" + ui.currentModeDisplay.getText());
+};
+
+/**
+ * 更新等待倍率
+ */
+MainUI.prototype.updateSpeedMultiplier = function(multiplier) {
+    var speedText = multiplier.toFixed(1) + "x";
+    ui.speedText.setText(speedText);
+    
+    // 更新等待时间管理器的倍率
+    waitTimeManager.setSpeedMultiplier(multiplier);
+    
+    // 更新模式描述
+    var modeDescription = waitTimeManager.getSpeedModeDescription();
+    ui.speedDisplay.setText(modeDescription + " (" + multiplier.toFixed(1) + "x)");
+    
+    this.addLog("等待倍率已更新为: " + speedText + " - " + modeDescription);
 };
 
 /**
