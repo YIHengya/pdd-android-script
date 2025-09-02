@@ -65,7 +65,7 @@ HomeNavigation.prototype.clickHomeButton = function(window) {
     if (homeButton) {
         logger.addLog(window, "找到首页按钮: " + homeButton.text());
         if (safeClick(homeButton)) {
-            sleep(this.waitTime);
+            waitTimeManager.wait('back');
             if (this.isAtHomePage(window)) {
                 logger.addLog(window, "✅ 成功回到主页");
                 return true;
@@ -164,7 +164,7 @@ HomeNavigation.prototype.closeApp = function(window) {
         for (var i = 0; i < this.config.packageNames.length; i++) {
             try {
                 app.openAppSetting(this.config.packageNames[i]);
-                sleep(1000);
+                waitTimeManager.wait('short');
                 
                 var forceStopBtn = text("强行停止").findOne(2000);
                 if (!forceStopBtn) {
@@ -176,7 +176,7 @@ HomeNavigation.prototype.closeApp = function(window) {
                 
                 if (forceStopBtn && forceStopBtn.enabled()) {
                     safeClick(forceStopBtn);
-                    sleep(1000);
+                    waitTimeManager.wait('short');
                     
                     var confirmBtn = text("确定").findOne(1000);
                     if (!confirmBtn) {
@@ -196,7 +196,7 @@ HomeNavigation.prototype.closeApp = function(window) {
         
         // 方法2: 回到桌面
         home();
-        sleep(1000);
+        waitTimeManager.wait('short');
         
     } catch (e) {
         logger.addLog(window, "关闭应用时出错: " + e.message);
@@ -221,11 +221,11 @@ HomeNavigation.prototype.getCurrentPackageWithRetry = function(maxRetries, retry
             }
 
             if (i < maxRetries - 1) {
-                sleep(retryDelay);
+                waitTimeManager.wait(retryDelay);
             }
         } catch (e) {
             if (i < maxRetries - 1) {
-                sleep(retryDelay);
+                waitTimeManager.wait(retryDelay);
             }
         }
     }
@@ -360,7 +360,7 @@ HomeNavigation.prototype.launchApp = function(window) {
         logger.addLog(window, "包名启动失败，尝试应用名启动...");
         logger.addLog(window, "尝试应用名: 拼多多");
         app.launchApp("拼多多");
-        sleep(this.config.waitTimes.appLaunch);
+        waitTimeManager.wait('appLaunch');
 
         // 再次检测
         currentPkg = this.getCurrentPackageWithRetry(5, 800);
@@ -490,7 +490,7 @@ HomeNavigation.prototype.isAtHomePage = function(window) {
             logger.addLog(window, "向上滚动第 " + (i + 1) + " 次...");
             // 向上滑动
             swipe(device.width / 2, device.height / 3, device.width / 2, device.height * 2 / 3, 300);
-            sleep(1000); // 增加等待时间，更像真实用户
+            waitTimeManager.wait('pageStable'); // 增加等待时间，更像真实用户
 
             // 每次滚动后立即检测主页标识
             if (checkHomeIndicators()) {

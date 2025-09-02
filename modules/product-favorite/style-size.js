@@ -1,5 +1,6 @@
 const { parsePrice } = require('../../utils/common.js');
 const logger = require('../../utils/logger.js');
+const { waitTimeManager } = require('../../utils/wait-time-manager.js');
 
 function clickProductMainImage(window){
 	try{
@@ -40,7 +41,7 @@ function clickProductMainImage(window){
 		var cy = b.centerY();
 		logger.addLog(window, "点击商品主图("+cx+","+cy+")");
 		click(cx, cy);
-		sleep(600);
+		waitTimeManager.wait(600);
 		return b;
 	}catch(e){
 		logger.addLog(window, "clickProductMainImage 出错: " + e.message);
@@ -87,7 +88,7 @@ function swipeWithin(window, bounds, direction){
 			endX = startX - dx;
 		}
 		swipe(startX, y, endX, y, 450);
-		sleep(900);
+		waitTimeManager.wait(900);
 		return true;
 	}catch(e){
 		logger.addLog(window, "swipeWithin 出错: " + e.message);
@@ -96,7 +97,7 @@ function swipeWithin(window, bounds, direction){
 }
 
 function swipeLeftFindCheapestVariant(window, maxSteps){
-	maxSteps = maxSteps || 12;
+	maxSteps = maxSteps || 60;
 	var imgBounds = clickProductMainImage(window);
 	if(!imgBounds){
 		logger.addLog(window, "❌ 无法定位主图，无法执行横向滑动");
@@ -146,7 +147,7 @@ function swipeLeftFindCheapestVariant(window, maxSteps){
 }
 
 function swipeLeftUntilPriceBelow(window, threshold, maxSteps){
-	maxSteps = maxSteps || 15;
+	maxSteps = maxSteps || 60;
 	if(typeof threshold !== 'number') threshold = 0.8;
 
 	var imgBounds = clickProductMainImage(window);
@@ -164,7 +165,7 @@ function swipeLeftUntilPriceBelow(window, threshold, maxSteps){
 			var cy0 = Math.floor(device.height / 2);
 			logger.addLog(window, "点击屏幕中间确认("+cx0+","+cy0+")");
 			click(cx0, cy0);
-			sleep(600);
+			waitTimeManager.wait(600);
 			return true;
 		}
 	} else {
@@ -182,7 +183,7 @@ function swipeLeftUntilPriceBelow(window, threshold, maxSteps){
 				var cy = Math.floor(device.height / 2);
 				logger.addLog(window, "点击屏幕中间确认("+cx+","+cy+")");
 				click(cx, cy);
-				sleep(600);
+				waitTimeManager.wait(600);
 				return true;
 			}
 		}

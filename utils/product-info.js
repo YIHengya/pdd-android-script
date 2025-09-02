@@ -5,6 +5,7 @@ const { PDD_CONFIG } = require('../config/app-config.js');
 const { parsePrice, safeClick, scrollWithRandomCoords } = require('./common.js');
 const logger = require('./logger.js');
 const ForbiddenKeywordsChecker = require('./forbidden-keywords-checker.js');
+const { waitTimeManager } = require('./wait-time-manager.js');
 
 /**
  * 商品信息获取器构造函数
@@ -25,7 +26,7 @@ ProductInfoExtractor.prototype.extractProductInfo = function(window, userName) {
         logger.addLog(window, "开始提取商品信息...");
 
         // 等待页面加载
-        sleep(this.config.waitTimes.pageLoad);
+        waitTimeManager.wait('pageLoad');
 
         // 检查页面是否包含禁止购买的关键词
         if (this.keywordsChecker.containsForbiddenKeywords(window, "商品详情页")) {
@@ -111,7 +112,7 @@ ProductInfoExtractor.prototype.findShopNameWithAllMethods = function(window) {
             if (scrollCount > 0) {
                 logger.addLog(window, "第 " + scrollCount + " 次下滑查找店铺...");
                 scrollWithRandomCoords('down');
-                sleep(8000);
+                waitTimeManager.wait(8000);
             }
 
             var recyclerView = id("pdd").className("android.support.v7.widget.RecyclerView").scrollable(true).findOne(2000);
@@ -300,7 +301,7 @@ ProductInfoExtractor.prototype.findShopNameNearEnterButton = function(window) {
             if (scrollCount > 0) {
                 logger.addLog(window, "第 " + scrollCount + " 次下滑查找店铺...");
                 scrollWithRandomCoords('down');
-                sleep(8000);
+                waitTimeManager.wait(8000);
             }
 
             // 优先使用精确的ID查找方法
@@ -722,7 +723,7 @@ ProductInfoExtractor.prototype.getUrlFromRightCornerShare = function(window) {
         for (var i = 0; i < positions.length; i++) {
             logger.addLog(window, "尝试点击位置: (" + positions[i].x + ", " + positions[i].y + ")");
             click(positions[i].x, positions[i].y);
-            sleep(1500);
+            waitTimeManager.wait(1500);
 
             var url = this.tryGetUrlFromShareMenu(window);
             if (url) {
@@ -731,7 +732,7 @@ ProductInfoExtractor.prototype.getUrlFromRightCornerShare = function(window) {
 
             // 如果没有成功，按返回键关闭可能的弹窗
             back();
-            sleep(500);
+            waitTimeManager.wait(500);
         }
 
         return null;
@@ -767,7 +768,7 @@ ProductInfoExtractor.prototype.getUrlFromPageShare = function(window) {
                 logger.addLog(window, "找到分享按钮: " + shareButton.text());
 
                 if (safeClick(shareButton)) {
-                    sleep(2000);
+                    waitTimeManager.wait(2000);
 
                     var url = this.tryGetUrlFromShareMenu(window);
                     if (url) {
@@ -777,7 +778,7 @@ ProductInfoExtractor.prototype.getUrlFromPageShare = function(window) {
 
                 // 关闭分享弹窗
                 back();
-                sleep(500);
+                waitTimeManager.wait(500);
             }
         }
 
@@ -813,7 +814,7 @@ ProductInfoExtractor.prototype.tryGetUrlFromShareMenu = function(window) {
                 logger.addLog(window, "找到复制链接按钮: " + copyButton.text());
 
                 if (safeClick(copyButton)) {
-                    sleep(1500);
+                    waitTimeManager.wait(1500);
 
                     // 获取剪贴板内容
                     var clipboardText = getClip();
@@ -821,7 +822,7 @@ ProductInfoExtractor.prototype.tryGetUrlFromShareMenu = function(window) {
                         logger.addLog(window, "成功获取商品链接");
                         logger.addLog(window,clipboardText)
 
-                        sleep(500);
+                        waitTimeManager.wait(500);
 
                         return clipboardText;
                     }
@@ -850,7 +851,7 @@ ProductInfoExtractor.prototype.getUrlFromAlternativeShare = function(window) {
         var screenHeight = device.height;
 
         longClick(screenWidth / 2, screenHeight / 2);
-        sleep(1500);
+        waitTimeManager.wait(1500);
 
         var url = this.tryGetUrlFromShareMenu(window);
         if (url) {
@@ -859,7 +860,7 @@ ProductInfoExtractor.prototype.getUrlFromAlternativeShare = function(window) {
 
         // 关闭可能的弹窗
         back();
-        sleep(500);
+        waitTimeManager.wait(500);
 
         return null;
     } catch (e) {

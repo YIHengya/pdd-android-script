@@ -3,6 +3,7 @@
 
 const { API_CONFIG } = require('../config/app-config.js');
 const logger = require('./logger.js');
+const { waitTimeManager } = require('./wait-time-manager.js');
 
 /**
  * API客户端构造函数
@@ -141,7 +142,7 @@ ApiClient.prototype.checkOrderPermissionWithRetry = function(window, orderData) 
         
         if (retryCount < this.config.maxRetries) {
             logger.addLog(window, "请求失败，2秒后重试...");
-            sleep(2000);
+            waitTimeManager.wait('retryInterval');
         }
     }
     
