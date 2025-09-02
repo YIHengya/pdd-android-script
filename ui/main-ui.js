@@ -107,77 +107,60 @@ MainUI.prototype.show = function() {
                                     <text id="maxPriceValue" text="0.80" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
                                 </horizontal>
 
-                                <horizontal gravity="center_vertical" margin="0 0 4dp 0">
-                                    <text text="购买数量:" textSize="12sp" textColor="#666666" w="80dp"/>
-                                    <text id="quantityDisplay" text="1件" textSize="12sp" textColor="#333333" textStyle="bold"/>
-                                </horizontal>
-
                                 <horizontal gravity="center_vertical">
-                                    <text text="数量:" textSize="12sp" textColor="#666666" w="50dp"/>
-                                    <seekbar id="quantitySeek" w="*" h="20dp" margin="0 8dp 0 8dp"
+                                    <text text="数量:" textColor="#666666" textSize="12sp" w="40dp"/>
+                                    <text id="quantityText" text="(1件)" textSize="12sp" textColor="#666666" w="50dp" gravity="left"/>
+                                    <seekbar id="quantitySeek" w="*" h="20dp" margin="0 4dp 0 4dp"
                                              max="99" progress="0" progressTint="#9C27B0" thumbTint="#9C27B0"/>
-                                    <text id="quantityValue" text="1" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
-                                </horizontal>
-                            </vertical>
-                        </card>
-
-                        {/* 等待倍率设置区域 */}
-                        <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
-                            <vertical padding="16dp">
-                                <text text="等待时间设置" textSize="18sp" textStyle="bold" textColor="#333333" margin="0 0 12dp 0"/>
-                                
-                                <horizontal gravity="center_vertical" margin="0 0 5dp 0">
-                                    <text text="等待倍率:" textColor="#333333" textSize="14sp" w="60dp"/>
-                                    <text id="speedDisplay" text="标准模式 (1.0x)" textColor="#333333" textSize="14sp" textStyle="bold" layout_weight="1"/>
                                 </horizontal>
 
+                                {/* 等待时间速度设置（合并显示） */}
                                 <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                                     <text text="速度:" textColor="#666666" textSize="12sp" w="40dp"/>
+                                    <text id="speedText" text="(1.0x)" textColor="#666666" textSize="12sp" w="50dp" gravity="left"/>
                                     <seekbar id="speedSeekbar" w="*" h="20dp" margin="0 4dp 0 4dp"
                                              max="99" progress="9" progressTint="#FF9800" thumbTint="#FF9800"/>
-                                    <text id="speedText" text="1.0x" textColor="#666666" textSize="12sp" w="35dp" gravity="center"/>
                                 </horizontal>
-                                
                                 <text text="调整等待时间可以适应不同网络环境和手机性能" 
                                       textSize="12sp" textColor="#888888" margin="0 4dp 0 0"/>
                             </vertical>
                         </card>
 
-                        {/* 用户信息区域 */}
-                        <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
-                            <vertical padding="16dp">
-                                <horizontal gravity="center_vertical" margin="0 0 12dp 0">
-                                    <text text="用户信息" textSize="18sp" textStyle="bold" textColor="#333333" layout_weight="1"/>
-                                    <button id="refreshUserBtn" text="更新用户信息"
-                                            textColor="#ffffff" bg="#4CAF50"
-                                            w="100dp" h="32dp" textSize="11sp"/>
-                                </horizontal>
+                {/* 用户信息区域 */}
+                <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
+                    <vertical padding="16dp">
+                        <horizontal gravity="center_vertical" margin="0 0 12dp 0">
+                            <text text="用户信息" textSize="18sp" textStyle="bold" textColor="#333333" layout_weight="1"/>
+                            <button id="refreshUserBtn" text="更新用户信息"
+                                    textColor="#ffffff" bg="#4CAF50"
+                                    w="100dp" h="32dp" textSize="11sp"/>
+                        </horizontal>
 
-                                <horizontal gravity="center_vertical" margin="0 0 4dp 0">
-                                    <text text="姓名:" textSize="14sp" textColor="#666666" w="50dp"/>
-                                    <text id="userName" text="未获取" textSize="14sp" textColor="#333333" layout_weight="1"/>
-                                </horizontal>
+                        <horizontal gravity="center_vertical" margin="0 0 4dp 0">
+                            <text text="姓名:" textSize="14sp" textColor="#666666" w="50dp"/>
+                            <text id="userName" text="未获取" textSize="14sp" textColor="#333333" layout_weight="1"/>
+                        </horizontal>
 
-                                <horizontal gravity="center_vertical" margin="0 0 4dp 0">
-                                    <text text="手机:" textSize="14sp" textColor="#666666" w="50dp"/>
-                                    <text id="userPhone" text="未获取" textSize="14sp" textColor="#333333" layout_weight="1"/>
-                                </horizontal>
+                        <horizontal gravity="center_vertical" margin="0 0 4dp 0">
+                            <text text="手机:" textSize="14sp" textColor="#666666" w="50dp"/>
+                            <text id="userPhone" text="未获取" textSize="14sp" textColor="#333333" layout_weight="1"/>
+                        </horizontal>
 
-                                <horizontal gravity="center_vertical" margin="0 0 8dp 0">
-                                    <text text="地址:" textSize="14sp" textColor="#666666" w="50dp"/>
-                                    <text id="userAddress" text="未获取" textSize="12sp" textColor="#333333" layout_weight="1" maxLines="2"/>
-                                </horizontal>
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="地址:" textSize="14sp" textColor="#666666" w="50dp"/>
+                            <text id="userAddress" text="未获取" textSize="12sp" textColor="#333333" layout_weight="1" maxLines="2"/>
+                        </horizontal>
 
-                                <horizontal gravity="center" margin="4dp 0 0 0">
-                                    <button id="saveUserBtn" text="保存到本地"
-                                            textColor="#ffffff" bg="#2196F3"
-                                            w="80dp" h="28dp" textSize="10sp" margin="2dp"/>
-                                    <button id="clearUserBtn" text="清除本地"
-                                            textColor="#ffffff" bg="#FF5722"
-                                            w="80dp" h="28dp" textSize="10sp" margin="2dp"/>
-                                </horizontal>
-                            </vertical>
-                        </card>
+                        <horizontal gravity="center" margin="4dp 0 0 0">
+                            <button id="saveUserBtn" text="保存到本地"
+                                    textColor="#ffffff" bg="#2196F3"
+                                    w="80dp" h="28dp" textSize="10sp" margin="2dp"/>
+                            <button id="clearUserBtn" text="清除本地"
+                                    textColor="#ffffff" bg="#FF5722"
+                                    w="80dp" h="28dp" textSize="10sp" margin="2dp"/>
+                        </horizontal>
+                    </vertical>
+                </card>
 
                         {/* 操作按钮区域 */}
                         <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
@@ -257,10 +240,8 @@ MainUI.prototype.initializeMode = function() {
 MainUI.prototype.initializeSpeedDisplay = function() {
     // 不与悬浮窗同步：直接使用默认显示 6.0x，仅更新本界面的UI，不改动全局倍率
     var defaultMultiplier = 6.0;
-    var speedText = defaultMultiplier.toFixed(1) + "x";
+    var speedText = "(" + defaultMultiplier.toFixed(1) + "x)";
     ui.speedText.setText(speedText);
-    // 对应描述：6.0x 属于“超极速模式”
-    ui.speedDisplay.setText("超极速模式 (" + speedText + ")");
     // 同步滑条到默认值（0.1-10.0 -> 0-99）
     var progress = Math.round((defaultMultiplier - 0.1) / 9.9 * 99);
     try { ui.speedSeekbar.setProgress(progress); } catch (e) {}
@@ -730,8 +711,7 @@ MainUI.prototype.updatePriceDisplay = function(minPrice, maxPrice) {
  * 更新购买数量显示
  */
 MainUI.prototype.updateQuantityDisplay = function(quantity) {
-    ui.quantityDisplay.setText(quantity + "件");
-    ui.quantityValue.setText(quantity.toString());
+    ui.quantityText.setText("(" + quantity + "件)");
 };
 
 /**
@@ -781,15 +761,14 @@ MainUI.prototype.switchToMode = function(mode) {
  * 更新等待倍率
  */
 MainUI.prototype.updateSpeedMultiplier = function(multiplier) {
-    var speedText = multiplier.toFixed(1) + "x";
+    var speedText = "(" + multiplier.toFixed(1) + "x)";
     ui.speedText.setText(speedText);
     
     // 更新等待时间管理器的倍率
     waitTimeManager.setSpeedMultiplier(multiplier);
     
-    // 更新模式描述
+    // 更新模式描述（仅用于日志，不再显示在UI中）
     var modeDescription = waitTimeManager.getSpeedModeDescription();
-    ui.speedDisplay.setText(modeDescription + " (" + multiplier.toFixed(1) + "x)");
     
     // 同步滑条位置到当前倍率（0.1-10.0 -> 0-99）
     var progress = Math.round((multiplier - 0.1) / 9.9 * 99);
