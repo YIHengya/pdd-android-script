@@ -111,7 +111,7 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
             logger.addLog(window, "✅ 找到商品，开始收藏前的权限检查");
 
             // 提取商品信息并检查收藏权限
-            var productInfo = this.productInfoExtractor.extractProductInfo(window, userName);
+            var productInfo = this.productInfoExtractor.extractProductInfo(window, userName, foundProduct.price);
             if (!productInfo) {
                 logger.addLog(window, "无法获取商品信息，返回主页继续寻找");
                 this.navigationHelper.goToHomePage(window);

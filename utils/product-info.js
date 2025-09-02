@@ -19,9 +19,10 @@ function ProductInfoExtractor() {
  * 获取当前商品页面的详细信息
  * @param {Object} window 悬浮窗对象
  * @param {string} userName 用户名
+ * @param {number} [fallbackPrice] 列表页发现的价格，作为详情页价格解析失败时的回退
  * @returns {Object|null} 商品信息对象或null
  */
-ProductInfoExtractor.prototype.extractProductInfo = function(window, userName) {
+ProductInfoExtractor.prototype.extractProductInfo = function(window, userName, fallbackPrice) {
     try {
         logger.addLog(window, "开始提取商品信息...");
 
@@ -34,11 +35,17 @@ ProductInfoExtractor.prototype.extractProductInfo = function(window, userName) {
             return null;
         }
 
+        var parsedPrice = this.getProductPrice(window);
+        if ((!parsedPrice || parsedPrice <= 0) && typeof fallbackPrice === 'number' && fallbackPrice > 0) {
+            logger.addLog(window, "使用列表页价格作为回退: " + fallbackPrice + " 元");
+            parsedPrice = fallbackPrice;
+        }
+
         var productInfo = {
             user_name: userName,
+            product_price: parsedPrice,
             shop_name: this.getShopName(window),
             product_url: this.getProductUrl(window),
-            product_price: this.getProductPrice(window),
             product_sku: this.getProductSku(window)
         };
 
@@ -901,6 +908,9 @@ ProductInfoExtractor.prototype.generateDefaultUrl = function() {
  */
 ProductInfoExtractor.prototype.getProductPrice = function(window) {
     try {
+        // 在价格识别前等待页面稳定，提升识别成功率
+        waitTimeManager.wait('pageStable');
+        
         // 查找价格元素
         var allTexts = textMatches(/.*/).find();
         var prices = [];

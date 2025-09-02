@@ -149,6 +149,13 @@ module.exports = {
             back();
             waitTimeManager.wait('medium'); // 等待页面关闭
 
+            // 如果仍处于规格选择页面（或被图片预览遮挡后仍回到规格层），再次尝试关闭一次
+            if (this.checkSpecificationPageVisible(window)) {
+                logger.addLog(window, "仍检测到规格选择界面或遮罩，执行二次关闭...");
+                back();
+                waitTimeManager.wait('medium');
+            }
+
             logger.addLog(window, "规格选择页面已关闭");
         } catch (e) {
             logger.addLog(window, "关闭规格选择页面失败: " + e.message);
