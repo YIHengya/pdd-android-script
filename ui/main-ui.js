@@ -138,7 +138,7 @@ MainUI.prototype.show = function() {
                                 <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                                     <text text="速度:" textColor="#666666" textSize="12sp" w="40dp"/>
                                     <seekbar id="speedSeekbar" w="*" h="20dp" margin="0 4dp 0 4dp"
-                                             max="49" progress="9" progressTint="#FF9800" thumbTint="#FF9800"/>
+                                             max="99" progress="9" progressTint="#FF9800" thumbTint="#FF9800"/>
                                     <text id="speedText" text="1.0x" textColor="#666666" textSize="12sp" w="35dp" gravity="center"/>
                                 </horizontal>
                                 
@@ -273,8 +273,15 @@ MainUI.prototype.initializeMode = function() {
  * 初始化等待时间倍率显示
  */
 MainUI.prototype.initializeSpeedDisplay = function() {
-    var currentMultiplier = waitTimeManager.getSpeedMultiplier();
-    this.updateSpeedMultiplier(currentMultiplier);
+    // 不与悬浮窗同步：直接使用默认显示 6.0x，仅更新本界面的UI，不改动全局倍率
+    var defaultMultiplier = 6.0;
+    var speedText = defaultMultiplier.toFixed(1) + "x";
+    ui.speedText.setText(speedText);
+    // 对应描述：6.0x 属于“超极速模式”
+    ui.speedDisplay.setText("超极速模式 (" + speedText + ")");
+    // 同步滑条到默认值（0.1-10.0 -> 0-99）
+    var progress = Math.round((defaultMultiplier - 0.1) / 9.9 * 99);
+    try { ui.speedSeekbar.setProgress(progress); } catch (e) {}
 };
 
 /**
@@ -356,8 +363,8 @@ MainUI.prototype.setupEventHandlers = function() {
     ui.speedSeekbar.setOnSeekBarChangeListener({
         onProgressChanged: function(seekBar, progress, fromUser) {
             if (fromUser) {
-                // 将进度值转换为倍率（0-49对应0.1-5.0）
-                var multiplier = 0.1 + (progress / 49.0) * 4.9;
+                // 将进度值转换为倍率（0-99对应0.1-10.0）
+                var multiplier = 0.1 + (progress / 99.0) * 9.9;
                 self.updateSpeedMultiplier(multiplier);
             }
         }
@@ -834,6 +841,12 @@ MainUI.prototype.updateSpeedMultiplier = function(multiplier) {
     // 更新模式描述
     var modeDescription = waitTimeManager.getSpeedModeDescription();
     ui.speedDisplay.setText(modeDescription + " (" + multiplier.toFixed(1) + "x)");
+    
+    // 同步滑条位置到当前倍率（0.1-10.0 -> 0-99）
+    var progress = Math.round((multiplier - 0.1) / 9.9 * 99);
+    try {
+        ui.speedSeekbar.setProgress(progress);
+    } catch (e) {}
     
     this.addLog("等待倍率已更新为: " + speedText + " - " + modeDescription);
 };

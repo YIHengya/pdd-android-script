@@ -1,5 +1,6 @@
 const logger = require('../../utils/logger.js');
 const { GlobalStopManager } = require('../../utils/common.js');
+const { waitTimeManager } = require('../../utils/wait-time-manager.js');
 
 function filterSelectedProducts(window) {
 	logger.addLog(window, "=== 开始处理\"已选\"功能 ===");
@@ -35,7 +36,7 @@ function filterSelectedProducts(window) {
 		click(bounds.centerX(), bounds.centerY());
 		logger.addLog(window, "已点击\"已选\"按钮");
 		
-		sleep(2000);
+		waitTimeManager.wait(2000);
 		
 		if (GlobalStopManager.isStopRequested()) {
 			logger.addLog(window, "检测到停止信号，终止价格筛选流程");
@@ -53,7 +54,7 @@ function filterSelectedProducts(window) {
 		} else {
 			logger.addLog(window, "❌ 未检测到\"清空选择\"按钮，商品选择页面可能未成功打开");
 			click(bounds.centerX(), bounds.centerY());
-			sleep(2000);
+			waitTimeManager.wait(2000);
 			clearButton = textContains("清空选择").findOne(2000);
 			if (clearButton) {
 				logger.addLog(window, "✅ 第二次尝试成功，商品选择页面已打开");
@@ -96,7 +97,7 @@ function processProducts(window) {
 		if (round == 1) {
 			logger.addLog(window, "准备第二轮删除，先滚动回顶部...");
 			this.scrollToTop(window);
-			sleep(1500);
+			waitTimeManager.wait(1500);
 		}
 	}
 	
@@ -125,7 +126,7 @@ function processProductsOnce(window, priceThreshold) {
 			logger.debug("未发现商品，向下滚动...");
 			scrollView.scrollForward();
 			scrollCount++;
-			sleep(1000);
+			waitTimeManager.wait(1000);
 			continue;
 		}
 		
@@ -193,13 +194,13 @@ function processProductsOnce(window, priceThreshold) {
 						
 						logger.debug("左滑显示删除按钮: " + startX + "," + y + " -> " + endX + "," + y);
 						gesture(300, [startX, y], [endX, y]);
-						sleep(1000);
+						waitTimeManager.wait(1000);
 						
 						var deleteTexts = textContains("删除").find();
 						if (deleteTexts.size() > 0) {
 							logger.debug("找到删除按钮，点击删除");
 							click(device.width - 50, y);
-							sleep(1000);
+							waitTimeManager.wait(1000);
 							
 							var confirmButton = textMatches(/(确认|确定|删除)/).clickable(true).findOne(2000);
 							if (confirmButton) {
@@ -209,12 +210,12 @@ function processProductsOnce(window, priceThreshold) {
 							
 							removedCount++;
 							foundDeleteTarget = true;
-							sleep(1500);
+							waitTimeManager.wait(1500);
 							break;
 						} else {
 							logger.debug("未找到删除按钮，尝试点击右侧区域");
 							click(device.width - 50, y);
-							sleep(1000);
+							waitTimeManager.wait(1000);
 							
 							var confirmButton2 = textMatches(/(确认|确定|删除)/).clickable(true).findOne(2000);
 							if (confirmButton2) {
@@ -222,7 +223,7 @@ function processProductsOnce(window, priceThreshold) {
 								click(confirmButton2.bounds().centerX(), confirmButton2.bounds().centerY());
 								removedCount++;
 								foundDeleteTarget = true;
-								sleep(1500);
+								waitTimeManager.wait(1500);
 								break;
 							}
 						}
@@ -246,7 +247,7 @@ function processProductsOnce(window, priceThreshold) {
 			keepScrolling = false;
 		}
 		
-		sleep(1000);
+		waitTimeManager.wait(1000);
 	}
 	
 	return removedCount;

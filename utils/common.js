@@ -203,7 +203,14 @@ function parsePrice(priceText) {
  * @deprecated 建议使用 waitTimeManager.wait() 替代
  */
 function wait(ms) {
-    sleep(ms);
+    try {
+        // 延用等待时间管理器以支持变速
+        var mgr = require('./wait-time-manager.js').waitTimeManager;
+        mgr.wait(ms);
+    } catch (e) {
+        // 兜底：如果管理器不可用则直接睡眠
+        sleep(ms);
+    }
 }
 
 /**

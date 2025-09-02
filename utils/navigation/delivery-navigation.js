@@ -60,7 +60,7 @@ DeliveryNavigation.prototype.goToPendingDeliveryViaPersonalCenter = function(win
             return false;
         }
         
-        sleep(this.waitTime);
+        waitTimeManager.wait(this.waitTime);
         
         // 查找"待收货"或相关按钮
         var deliverySelectors = [
@@ -84,7 +84,7 @@ DeliveryNavigation.prototype.goToPendingDeliveryViaPersonalCenter = function(win
         if (deliveryButton) {
             logger.addLog(window, "找到待收货按钮: " + deliveryButton.text());
             if (safeClick(deliveryButton)) {
-                sleep(this.waitTime);
+                waitTimeManager.wait(this.waitTime);
                 if (this.isAtPendingDeliveryPage(window)) {
                     logger.addLog(window, "✅ 成功通过个人中心进入待收货页面");
                     return true;
@@ -106,14 +106,14 @@ DeliveryNavigation.prototype.goToPendingDeliveryViaPersonalCenter = function(win
         if (orderButton) {
             logger.addLog(window, "找到订单按钮: " + orderButton.text());
             if (safeClick(orderButton)) {
-                sleep(this.waitTime);
+                waitTimeManager.wait(this.waitTime);
                 
                 // 在订单页面查找待收货标签
                 var pendingDeliveryTab = findAnyElement(deliverySelectors);
                 if (pendingDeliveryTab) {
                     logger.addLog(window, "找到待收货标签: " + pendingDeliveryTab.text());
                     if (safeClick(pendingDeliveryTab)) {
-                        sleep(this.waitTime);
+                        waitTimeManager.wait(this.waitTime);
                         if (this.isAtPendingDeliveryPage(window)) {
                             logger.addLog(window, "✅ 成功通过订单页面进入待收货页面");
                             return true;
@@ -150,7 +150,7 @@ DeliveryNavigation.prototype.goToPendingDeliveryViaBottomNav = function(window) 
             return false;
         }
         
-        sleep(this.waitTime);
+        waitTimeManager.wait(this.waitTime);
         
         // 查找底部导航中的订单或购物车相关按钮
         var bottomNavSelectors = [
@@ -172,7 +172,7 @@ DeliveryNavigation.prototype.goToPendingDeliveryViaBottomNav = function(window) 
                 if (bounds.bottom > device.height * 0.8) {
                     logger.addLog(window, "找到底部导航按钮: " + elements[j].text());
                     if (safeClick(elements[j])) {
-                        sleep(this.waitTime);
+                        waitTimeManager.wait(this.waitTime);
                         
                         // 在新页面查找待收货相关内容
                         if (this.findAndClickPendingDelivery(window)) {

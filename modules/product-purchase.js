@@ -661,7 +661,7 @@ ProductPurchase.prototype.waitForAlipayAndReturn = function(window) {
 
     if (orderCompleted) {
         logger.addLog(window, "订单已成功创建，开始返回主页");
-        sleep(1000); // 稍等一下确保页面稳定
+        waitTimeManager.wait('pageStable'); // 适配变速，等待页面稳定
         this.navigationHelper.goToHomePage(window);
     } else {
         logger.addLog(window, "未检测到支付页面或待支付状态，直接返回主页");

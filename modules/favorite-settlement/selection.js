@@ -1,5 +1,6 @@
 const logger = require('../../utils/logger.js');
 const { GlobalStopManager } = require('../../utils/common.js');
+const { waitTimeManager } = require('../../utils/wait-time-manager.js');
 
 function autoSelectFavoriteProducts(window) {
 	logger.addLog(window, "开始自动下滑选择商品...");
@@ -31,14 +32,14 @@ function autoSelectFavoriteProducts(window) {
 			if (titlePreview.length > 20) titlePreview = titlePreview.substring(0, 20) + "...";
 			logger.addLog(window, "点击: " + titlePreview + " | 店铺: " + (p.商品信息.店铺 || ""));
 			click(p.选择按钮中心.x, p.选择按钮中心.y);
-			sleep(500);
+			waitTimeManager.wait(500);
 			this.selectedSignatures.add(sig);
 			clickCount++;
 			if (!selectAll && clickCount >= 3) {
 				logger.debug("非全选模式达到上限 3 次点击");
 				break;
 			}
-			sleep(250);
+			waitTimeManager.wait(250);
 		}
 		logger.addLog(window, "本轮新点击: " + clickCount);
 		return clickCount;
@@ -86,7 +87,7 @@ function autoSelectFavoriteProducts(window) {
 			break;
 		}
 		performSmartScroll(deviceInfo);
-		sleep(1200);
+		waitTimeManager.wait(1200);
 	}
 	logger.addLog(window, "自动勾选完成");
 	logger.addLog(window, "总滚动次数: " + scrollCount);

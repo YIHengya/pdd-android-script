@@ -1,8 +1,9 @@
 const logger = require('../../utils/logger.js');
+const { waitTimeManager } = require('../../utils/wait-time-manager.js');
 
 function checkAndClosePopup(window) {
 	logger.debug("检查是否出现规格选择弹窗...");
-	sleep(1000);
+	waitTimeManager.wait(1000);
 	
 	var deviceInfo = this.getDeviceInfo();
 	var screenWidth = deviceInfo.width;
@@ -14,7 +15,7 @@ function checkAndClosePopup(window) {
 		var topBlankX = Math.floor(screenWidth * 0.5);
 		var topBlankY = Math.floor(screenHeight * 0.12);
 		click(topBlankX, topBlankY);
-		sleep(800);
+		waitTimeManager.wait(800);
 		if (!textMatches(/(请选择|规格|颜色|尺码|型号|款式)/).findOne(500)) {
 			return true;
 		}
@@ -27,7 +28,7 @@ function checkAndClosePopup(window) {
 		var closeBounds = closeBtn.bounds();
 		click(closeBounds.centerX(), closeBounds.centerY());
 		logger.addLog(window, "已关闭规格选择弹窗");
-		sleep(1000);
+		waitTimeManager.wait(1000);
 		return true;
 	}
 	
@@ -37,7 +38,7 @@ function checkAndClosePopup(window) {
 		var closeBounds2 = possibleCloseBtn.bounds();
 		click(closeBounds2.centerX(), closeBounds2.centerY());
 		logger.addLog(window, "已尝试关闭弹窗");
-		sleep(1000);
+		waitTimeManager.wait(1000);
 		return true;
 	}
 	
@@ -45,7 +46,7 @@ function checkAndClosePopup(window) {
 		var topBlankX2 = Math.floor(screenWidth * 0.5);
 		var topBlankY2 = Math.floor(screenHeight * 0.12);
 		click(topBlankX2, topBlankY2);
-		sleep(800);
+		waitTimeManager.wait(800);
 		if (!textMatches(/(请选择|规格|颜色|尺码|型号|款式)/).findOne(500)) {
 			return true;
 		}
@@ -53,7 +54,7 @@ function checkAndClosePopup(window) {
 		var topRightY = screenHeight * 0.1;
 		logger.addLog(window, "顶部空白未能关闭，尝试点击右上角");
 		click(topRightX, topRightY);
-		sleep(1000);
+		waitTimeManager.wait(1000);
 		return true;
 	}
 	

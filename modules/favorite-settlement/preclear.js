@@ -1,5 +1,6 @@
 const { GlobalStopManager } = require('../../utils/common.js');
 const logger = require('../../utils/logger.js');
+const { waitTimeManager } = require('../../utils/wait-time-manager.js');
 
 function preClearSelections(window) {
 	logger.addLog(window, "=== 预处理：清空已选 ===");
@@ -45,7 +46,7 @@ function preClearSelections(window) {
 		var selBounds = selectedButton.bounds();
 		click(selBounds.centerX(), selBounds.centerY());
 		logger.addLog(window, "已点击“已选”按钮");
-		sleep(1500);
+		waitTimeManager.wait(1500);
 
 		if (GlobalStopManager.isStopRequested()) {
 			return false;
@@ -60,13 +61,13 @@ function preClearSelections(window) {
 			var cb = clearBtn.bounds();
 			click(cb.centerX(), cb.centerY());
 			logger.addLog(window, "已点击“清空选择”");
-			sleep(800);
+			waitTimeManager.wait(800);
 		} else {
 			logger.addLog(window, "未找到“清空选择”按钮");
 		}
 
 		// 检测底部“已选0款”，确认已清空；然后回到顶部
-		sleep(1000);
+		waitTimeManager.wait(1000);
 		var zeroSelected = className("android.widget.TextView").textMatches(/已选\s*0款?/).findOne(1500) || className("android.widget.TextView").textContains("已选0").findOne(1500);
 		if (zeroSelected) {
 			logger.addLog(window, "已清空选择：检测到“已选0款”");
@@ -108,7 +109,7 @@ function scrollToTop(window) {
 
 		// 向下滑动（手指从上往下），使内容回退到列表顶部
 		gesture(500, [centerX, startY], [centerX, endY]);
-		sleep(500);
+		waitTimeManager.wait(500);
 
 		var newFirstChild = scrollView.childCount() > 0 ? scrollView.child(0) : null;
 		var afterTop = newFirstChild ? newFirstChild.bounds().top : -1;

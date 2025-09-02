@@ -53,6 +53,7 @@ module.exports = {
                         var threshold = (this.currentPriceRange && typeof this.currentPriceRange.max === 'number') ? this.currentPriceRange.max : null;
                         var selected = threshold ? StyleSize.selectUntilBelow(window, threshold, 60) : StyleSize.selectCheapest(window, 55);
                         logger.addLog(window, selected ? "✅ 选择规格完成" : "⚠️ 未能完成选择，尝试关闭弹窗");
+                        waitTimeManager.wait('medium');
                         this.closeSpecificationPage(window);
                         return true;
                     }

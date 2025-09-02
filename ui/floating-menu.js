@@ -161,7 +161,7 @@ FloatingMenu.prototype.create = function() {
                         <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                             <text text="速度:" textColor="#666666" textSize="11sp" w="35dp"/>
                             <seekbar id="speedSeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
-                                     max="49" progress="9" progressTint="#FF9800" thumbTint="#FF9800"/>
+                                     max="99" progress="9" progressTint="#FF9800" thumbTint="#FF9800"/>
                             <text id="speedText" text="1.0x" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
                         </horizontal>
 
@@ -345,8 +345,8 @@ FloatingMenu.prototype.setupEventHandlers = function() {
         this.menuWindow.speedSeekbar.setOnSeekBarChangeListener({
             onProgressChanged: function(seekBar, progress, fromUser) {
                 if (fromUser) {
-                    // 将进度值转换为倍率（0-49对应0.1-5.0）
-                    var multiplier = 0.1 + (progress / 49.0) * 4.9;
+                    // 将进度值转换为倍率（0-99对应0.1-10.0）
+                    var multiplier = 0.1 + (progress / 99.0) * 9.9;
                     self.updateSpeedMultiplier(multiplier);
                 }
             }
@@ -851,7 +851,7 @@ FloatingMenu.prototype.updateSpeedMultiplier = function(multiplier) {
             this.menuWindow.speedDisplay.setText(modeDescription + " (" + multiplier.toFixed(1) + "x)");
 
             // 更新滑动条位置
-            var progress = Math.round((multiplier - 0.1) / 4.9 * 49);
+            var progress = Math.round((multiplier - 0.1) / 9.9 * 99);
             this.menuWindow.speedSeekbar.setProgress(progress);
 
         } catch (e) {

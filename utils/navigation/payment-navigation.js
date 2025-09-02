@@ -60,7 +60,7 @@ PaymentNavigation.prototype.goToPendingPaymentViaPersonalCenter = function(windo
             return false;
         }
         
-        sleep(this.waitTime);
+        waitTimeManager.wait(this.waitTime);
         
         // 查找"待付款"或相关按钮
         var paymentSelectors = [
@@ -80,7 +80,7 @@ PaymentNavigation.prototype.goToPendingPaymentViaPersonalCenter = function(windo
         if (paymentButton) {
             logger.addLog(window, "找到待支付按钮: " + paymentButton.text());
             if (safeClick(paymentButton)) {
-                sleep(this.waitTime);
+                waitTimeManager.wait(this.waitTime);
                 if (this.isAtPendingPaymentPage(window)) {
                     logger.addLog(window, "✅ 成功通过个人中心进入待支付页面");
                     return true;
@@ -102,14 +102,14 @@ PaymentNavigation.prototype.goToPendingPaymentViaPersonalCenter = function(windo
         if (orderButton) {
             logger.addLog(window, "找到订单按钮: " + orderButton.text());
             if (safeClick(orderButton)) {
-                sleep(this.waitTime);
+                waitTimeManager.wait(this.waitTime);
                 
                 // 在订单页面查找待支付标签
                 var pendingPaymentTab = findAnyElement(paymentSelectors);
                 if (pendingPaymentTab) {
                     logger.addLog(window, "找到待支付标签: " + pendingPaymentTab.text());
                     if (safeClick(pendingPaymentTab)) {
-                        sleep(this.waitTime);
+                        waitTimeManager.wait(this.waitTime);
                         if (this.isAtPendingPaymentPage(window)) {
                             logger.addLog(window, "✅ 成功通过订单页面进入待支付页面");
                             return true;
@@ -146,7 +146,7 @@ PaymentNavigation.prototype.goToPendingPaymentViaBottomNav = function(window) {
             return false;
         }
         
-        sleep(this.waitTime);
+        waitTimeManager.wait(this.waitTime);
         
         // 查找底部导航中的订单或购物车相关按钮
         var bottomNavSelectors = [
@@ -168,7 +168,7 @@ PaymentNavigation.prototype.goToPendingPaymentViaBottomNav = function(window) {
                 if (bounds.bottom > device.height * 0.8) {
                     logger.addLog(window, "找到底部导航按钮: " + elements[j].text());
                     if (safeClick(elements[j])) {
-                        sleep(this.waitTime);
+                        waitTimeManager.wait(this.waitTime);
                         
                         // 在新页面查找待支付相关内容
                         if (this.findAndClickPendingPayment(window)) {

@@ -1,5 +1,6 @@
 const logger = require('../../utils/logger.js');
 const { GlobalStopManager } = require('../../utils/common.js');
+const { waitTimeManager } = require('../../utils/wait-time-manager.js');
 
 function getDeviceInfo() {
 	var screenWidth = device.width;
@@ -63,7 +64,7 @@ function buildSignature(info) {
 function getProductImagesWithShopNames(window) {
 	logger.addLog(window, "正在获取商品图片、店铺名和价格...");
 	
-	sleep(1000);
+	waitTimeManager.wait(1000);
 	
 	var deviceInfo = this.getDeviceInfo();
 	var root = className("android.widget.FrameLayout").findOne(1000);
@@ -322,7 +323,7 @@ function getProductImagesWithShopNames(window) {
 function getProductItemsFromUI(window) {
 	logger.addLog(window, "正在识别商品项...");
 	try {
-		sleep(500);
+		waitTimeManager.wait(500);
 		var products = [];
 		var recyclerView = id("com.xunmeng.pinduoduo:id/pdd").className("android.support.v7.widget.RecyclerView").findOne(1500);
 		if (!recyclerView) {

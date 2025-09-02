@@ -7,8 +7,8 @@ const { PDD_CONFIG } = require('../config/app-config.js');
  * 等待时间管理器构造函数
  */
 function WaitTimeManager() {
-    // 默认倍率为1.0（正常速度）
-    this.speedMultiplier = 1.0;
+    // 默认倍率为6.0（默认6倍速）
+    this.speedMultiplier = 6.0;
     
     // 基础等待时间配置（从配置文件获取）
     this.baseWaitTimes = PDD_CONFIG.waitTimes;
@@ -44,17 +44,17 @@ function WaitTimeManager() {
 
 /**
  * 设置速度倍率
- * @param {number} multiplier 速度倍率（0.1-5.0）
+ * @param {number} multiplier 速度倍率（0.1-10.0）
  * 0.1 = 10倍慢（调试模式）
  * 0.5 = 2倍慢
  * 1.0 = 正常速度
  * 2.0 = 2倍快
- * 5.0 = 5倍快（极速模式）
+ * 10.0 = 10倍快（超极速模式）
  */
 WaitTimeManager.prototype.setSpeedMultiplier = function(multiplier) {
     // 限制倍率范围
     if (multiplier < 0.1) multiplier = 0.1;
-    if (multiplier > 5.0) multiplier = 5.0;
+    if (multiplier > 10.0) multiplier = 10.0;
     
     this.speedMultiplier = multiplier;
     console.log("等待时间倍率已设置为: " + multiplier + "x");
@@ -148,10 +148,10 @@ WaitTimeManager.prototype.getSpeedModeDescription = function() {
         return "正常模式";
     } else if (multiplier <= 2.0) {
         return "快速模式";
-    } else if (multiplier <= 3.0) {
+    } else if (multiplier <= 5.0) {
         return "高速模式";
     } else {
-        return "极速模式";
+        return "超极速模式";
     }
 };
 
@@ -182,6 +182,9 @@ WaitTimeManager.prototype.setPresetMode = function(mode) {
             break;
         case 'turbo':
             this.setSpeedMultiplier(5.0);
+            break;
+        case 'ultra':
+            this.setSpeedMultiplier(10.0);
             break;
         default:
             console.warn("未知的预设模式: " + mode);
