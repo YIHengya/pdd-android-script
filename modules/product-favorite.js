@@ -68,6 +68,9 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
             logger.addLog(window, "用户: " + userName + ", 价格区间: " + priceRange.min.toFixed(2) + "-" + priceRange.max.toFixed(2) + " 元, 收藏数量: " + favoriteQuantity + "件");
         }
 
+        // 保存价格区间以供后续规格选择使用
+        this.currentPriceRange = priceRange;
+
         // 1. 启动应用
         if (!this.navigationHelper.launchApp(window)) {
             logger.addLog(window, "无法打开拼多多APP，请检查是否已安装");

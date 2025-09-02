@@ -1,6 +1,7 @@
 const { safeClick } = require('../../utils/common.js');
 const logger = require('../../utils/logger.js');
 const { waitTimeManager } = require('../../utils/wait-time-manager.js');
+const StyleSize = require('./style-size.js');
 
 module.exports = {
     /**
@@ -38,20 +39,22 @@ module.exports = {
                             return false;
                         }
 
-                        // 检查是否弹出了规格选择页面
-                        var specificationPageVisible = this.checkSpecificationPageVisible(window);
-                        if (specificationPageVisible) {
-                            logger.addLog(window, "规格选择页面已弹出，关闭页面");
-                            // 关闭规格选择页面
-                            this.closeSpecificationPage(window);
-                            return true;
+                        // 不再判定规格选择页面，改为检测支付相关元素并进行选择规格
+                        logger.addLog(window, "已触发规格选择，检查是否出现支付相关元素...");
+                        var hasPayment = textContains("立即支付").findOne(800) ||
+                                         textContains("更换支付方式").findOne(800) ||
+                                         textContains("支付宝").findOne(800) ||
+                                         textContains("微信支付").findOne(800);
+                        if (hasPayment) {
+                            logger.addLog(window, "检测到支付元素，开始点开主图并按价格规则选择规格...");
                         } else {
-                            logger.addLog(window, "未检测到规格选择页面，可能直接进入了支付流程");
-                            // 如果直接进入支付流程，返回上一页
-                            back();
-                            waitTimeManager.wait('pageStable');
-                            return true;
+                            logger.addLog(window, "未检测到支付元素，仍尝试选择规格以提高成功率...");
                         }
+                        var threshold = (this.currentPriceRange && typeof this.currentPriceRange.max === 'number') ? this.currentPriceRange.max : null;
+                        var selected = threshold ? StyleSize.selectUntilBelow(window, threshold, 20) : StyleSize.selectCheapest(window, 15);
+                        logger.addLog(window, selected ? "✅ 选择规格完成" : "⚠️ 未能完成选择，尝试关闭弹窗");
+                        this.closeSpecificationPage(window);
+                        return true;
                     }
                 }
             }
@@ -70,19 +73,22 @@ module.exports = {
                 return false;
             }
 
-            // 检查是否弹出了规格选择页面
-            var specificationPageVisible = this.checkSpecificationPageVisible(window);
-            if (specificationPageVisible) {
-                logger.addLog(window, "规格选择页面已弹出，关闭页面");
-                this.closeSpecificationPage(window);
-                return true;
+            // 不再判定规格选择页面，改为检测支付相关元素并进行选择规格
+            logger.addLog(window, "已触发规格选择，检查是否出现支付相关元素...");
+            var hasPayment = textContains("立即支付").findOne(800) ||
+                             textContains("更换支付方式").findOne(800) ||
+                             textContains("支付宝").findOne(800) ||
+                             textContains("微信支付").findOne(800);
+            if (hasPayment) {
+                logger.addLog(window, "检测到支付元素，开始点开主图并按价格规则选择规格...");
             } else {
-                logger.addLog(window, "未检测到规格选择页面，可能直接进入支付流程");
-                // 如果直接进入支付流程，返回上一页
-                back();
-                waitTimeManager.wait('pageStable');
-                return true;
+                logger.addLog(window, "未检测到支付元素，仍尝试选择规格以提高成功率...");
             }
+            var threshold = (this.currentPriceRange && typeof this.currentPriceRange.max === 'number') ? this.currentPriceRange.max : null;
+            var selected = threshold ? StyleSize.selectUntilBelow(window, threshold, 20) : StyleSize.selectCheapest(window, 15);
+            logger.addLog(window, selected ? "✅ 选择规格完成" : "⚠️ 未能完成选择，尝试关闭弹窗");
+            this.closeSpecificationPage(window);
+            return true;
 
         } catch (e) {
             logger.addLog(window, "触发规格选择失败: " + e.message);
