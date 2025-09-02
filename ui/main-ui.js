@@ -3,7 +3,6 @@
 
 "ui";
 
-const ProductPurchase = require('../modules/product-purchase.js');
 const ProductFavorite = require('../modules/product-favorite.js');
 const FavoriteSettlement = require('../modules/favorite-settlement.js');
 const AutoPayment = require('../modules/auto-payment.js');
@@ -18,7 +17,6 @@ const { waitTimeManager } = require('../utils/wait-time-manager.js');
  */
 function MainUI() {
     this.floatingWindow = null;
-    this.productPurchase = null;
     this.productFavorite = null;
     this.favoriteSettlement = null;
     this.autoPayment = null;
@@ -27,7 +25,7 @@ function MainUI() {
     this.userInfoManager = null; // 用户信息管理器
     this.isFloatingWindowActive = false;
     this.scriptThread = null;
-    this.currentMode = 'purchase'; // 默认为购买模式
+    this.currentMode = 'favorite'; // 默认为收藏模式
 }
 
 /**
@@ -67,12 +65,10 @@ MainUI.prototype.show = function() {
                             <vertical padding="16dp">
                                 <text text="功能设置" textSize="18sp" textStyle="bold" textColor="#333333" margin="0 0 12dp 0"/>
                                 
-                                <text id="currentModeDisplay" text="当前模式：商品购买模式" 
+                                <text id="currentModeDisplay" text="当前模式：商品收藏模式" 
                                       textSize="14sp" textColor="#333333" textStyle="bold" margin="0 0 8dp 0"/>
                                 
                                 <horizontal gravity="center" margin="0 0 8dp 0">
-                                    <button id="purchaseModeBtn" text="商品购买模式" textColor="#ffffff" bg="#2196F3"
-                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                     <button id="favoriteModeBtn" text="商品收藏模式" textColor="#666666" bg="#E0E0E0"
                                             w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                 </horizontal>
@@ -88,7 +84,7 @@ MainUI.prototype.show = function() {
 
                                 {/* 模式说明区域 */}
                                 <vertical id="modeDescriptionArea" margin="0 0 12dp 0" bg="#f5f5f5" padding="8dp">
-                                    <text id="modeDescription" text="自动寻找符合价格区间的商品并执行购买操作"
+                                    <text id="modeDescription" text="自动批量收藏符合价格区间的商品到收藏夹"
                                           textSize="12sp" textColor="#666666"/>
                                 </vertical>
                                 
@@ -197,21 +193,7 @@ MainUI.prototype.show = function() {
                                             w="100dp" h="45dp" margin="8dp" textSize="14sp" enabled="false"/>
                                 </horizontal>
 
-                                <horizontal gravity="center" margin="0 0 4dp 0">
-                                    <button id="viewPurchasedBtn" text="查看已购买"
-                                            textColor="#ffffff" bg="#9C27B0"
-                                            w="100dp" h="35dp" margin="4dp" textSize="12sp"/>
-                                    <button id="clearPurchasedBtn" text="清除记录"
-                                            textColor="#ffffff" bg="#FF9800"
-                                            w="100dp" h="35dp" margin="4dp" textSize="12sp"/>
-                                </horizontal>
-
-                                <horizontal gravity="center">
-                                    <button id="resetSessionBtn" text="重置会话"
-                                            textColor="#ffffff" bg="#607D8B"
-                                            w="100dp" h="35dp" margin="4dp" textSize="12sp"/>
-                                    <text text="清除位置记录" textSize="10sp" textColor="#666666" gravity="center" layout_weight="1"/>
-                                </horizontal>
+                                {/* 移除与已购买记录相关的操作按钮 */}
                                 
                                 <horizontal gravity="center" margin="8dp 0 0 0">
                                     <button id="helpBtn" text="帮助"
@@ -290,7 +272,6 @@ MainUI.prototype.initializeSpeedDisplay = function() {
 MainUI.prototype.initializeModules = function() {
     var self = this;
 
-    this.productPurchase = new ProductPurchase();
     this.productFavorite = new ProductFavorite();
     this.favoriteSettlement = new FavoriteSettlement();
     this.autoPayment = new AutoPayment();
@@ -339,23 +320,16 @@ MainUI.prototype.setupEventHandlers = function() {
     });
 
     // 模式切换按钮事件处理
-    ui.purchaseModeBtn.click(function() {
-        self.switchToMode('purchase');
-    });
-    
     ui.favoriteModeBtn.click(function() {
         self.switchToMode('favorite');
     });
-    
-    ui.favoriteSettlementModeBtn.click(function() {
+    ui.favoriteSettlementModeBtn && ui.favoriteSettlementModeBtn.click(function() {
         self.switchToMode('favoriteSettlement');
     });
-    
-    ui.paymentModeBtn.click(function() {
+    ui.paymentModeBtn && ui.paymentModeBtn.click(function() {
         self.switchToMode('payment');
     });
-    
-    ui.deliveryModeBtn.click(function() {
+    ui.deliveryModeBtn && ui.deliveryModeBtn.click(function() {
         self.switchToMode('delivery');
     });
     
@@ -440,21 +414,6 @@ MainUI.prototype.setupEventHandlers = function() {
     // 停止脚本按钮
     ui.stopScriptBtn.click(function() {
         self.stopScript();
-    });
-
-    // 查看已购买商品按钮
-    ui.viewPurchasedBtn.click(function() {
-        self.viewPurchasedProducts();
-    });
-
-    // 清除已购买记录按钮
-    ui.clearPurchasedBtn.click(function() {
-        self.clearPurchasedProducts();
-    });
-
-    // 重置会话按钮
-    ui.resetSessionBtn.click(function() {
-        self.resetPurchaseSession();
     });
 
     // 清空日志按钮
@@ -572,9 +531,7 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     self.addLog("✅ 匹配到delivery模式，开始执行物流追踪");
                     self.deliveryTracking.execute(window, userName);
                 } else {
-                    // 执行购买功能
-                    self.addLog("执行模式: 自动购买");
-                    self.productPurchase.execute(window, priceRange, userName, purchaseQuantity);
+                    self.addLog("不支持的模式: " + mode);
                 }
 
             } catch (e) {
@@ -641,7 +598,7 @@ MainUI.prototype.startScript = function() {
 
     this.addLog("启动脚本: " + ui.currentModeDisplay.getText());
     this.addLog("价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + "元");
-    this.addLog("购买数量: " + purchaseQuantity + "件");
+    this.addLog("收藏数量: " + purchaseQuantity + "件");
 
     // 更新按钮状态
     ui.startScriptBtn.setEnabled(false);
@@ -675,9 +632,8 @@ MainUI.prototype.startScript = function() {
             } else if (self.currentMode === 'delivery') {
                 self.addLog("执行模式: 待收货物流追踪");
                 self.deliveryTracking.execute(null, self.getUserName());
-            } else { // 默认购买模式
-                self.addLog("执行模式: 自动购买");
-                self.productPurchase.execute(null, priceRange, self.getUserName(), purchaseQuantity);
+            } else {
+                self.addLog("不支持的模式: " + self.currentMode);
             }
 
         } catch (e) {
@@ -786,8 +742,6 @@ MainUI.prototype.switchToMode = function(mode) {
     this.currentMode = mode;
     
     // 重置所有按钮样式
-    ui.purchaseModeBtn.attr('textColor', '#666666');
-    ui.purchaseModeBtn.attr('bg', '#E0E0E0');
     ui.favoriteModeBtn.attr('textColor', '#666666');
     ui.favoriteModeBtn.attr('bg', '#E0E0E0');
     ui.favoriteSettlementModeBtn.attr('textColor', '#666666');
@@ -798,12 +752,7 @@ MainUI.prototype.switchToMode = function(mode) {
     ui.deliveryModeBtn.attr('bg', '#E0E0E0');
     
     // 设置当前模式按钮样式
-    if (mode === 'purchase') {
-        ui.purchaseModeBtn.attr('textColor', '#ffffff');
-        ui.purchaseModeBtn.attr('bg', '#2196F3');
-        ui.currentModeDisplay.setText("当前模式：商品购买模式");
-        ui.modeDescription.setText("自动寻找符合价格区间的商品并执行购买操作");
-    } else if (mode === 'favorite') {
+    if (mode === 'favorite') {
         ui.favoriteModeBtn.attr('textColor', '#ffffff');
         ui.favoriteModeBtn.attr('bg', '#E91E63');
         ui.currentModeDisplay.setText("当前模式：商品收藏模式");
@@ -1011,92 +960,6 @@ MainUI.prototype.clearLocalUserInfo = function() {
  */
 MainUI.prototype.getUserName = function() {
     return ui.userName.getText().toString() || "未知用户";
-};
-
-/**
- * 查看已购买商品
- */
-MainUI.prototype.viewPurchasedProducts = function() {
-    var self = this;
-
-    if (!this.productPurchase) {
-        this.addLog("购买模块未初始化");
-        return;
-    }
-
-    var count = this.productPurchase.getPurchasedProductsCount();
-    if (count === 0) {
-        this.addLog("暂无已购买商品记录");
-        return;
-    }
-
-    this.addLog("=== 已购买商品记录 (" + count + "件) ===");
-
-    // 获取已购买商品列表
-    var purchasedProducts = this.productPurchase.purchasedProducts;
-    for (var i = 0; i < Math.min(purchasedProducts.length, 10); i++) {
-        var product = purchasedProducts[i];
-        this.addLog((i + 1) + ". " + product.text + " - " + product.price + "元 (" + product.date + ")");
-    }
-
-    if (purchasedProducts.length > 10) {
-        this.addLog("... 还有 " + (purchasedProducts.length - 10) + " 条记录");
-    }
-
-    this.addLog("=== 记录查看完毕 ===");
-};
-
-/**
- * 清除已购买商品记录
- */
-MainUI.prototype.clearPurchasedProducts = function() {
-    var self = this;
-
-    if (!this.productPurchase) {
-        this.addLog("购买模块未初始化");
-        return;
-    }
-
-    var count = this.productPurchase.getPurchasedProductsCount();
-    if (count === 0) {
-        this.addLog("暂无已购买商品记录需要清除");
-        return;
-    }
-
-    // 确认对话框
-    dialogs.confirm("确认清除", "确定要清除所有已购买商品记录吗？\n当前共有 " + count + " 条记录。")
-        .then(function(confirmed) {
-            if (confirmed) {
-                self.productPurchase.clearPurchasedProducts();
-                self.addLog("✅ 已清除所有已购买商品记录 (" + count + "条)");
-            } else {
-                self.addLog("取消清除操作");
-            }
-        });
-};
-
-/**
- * 重置购买会话
- */
-MainUI.prototype.resetPurchaseSession = function() {
-    var self = this;
-
-    if (!this.productPurchase) {
-        this.addLog("购买模块未初始化");
-        return;
-    }
-
-    // 确认对话框
-    dialogs.confirm("重置会话", "确定要重置购买会话吗？\n这将清除所有已点击的商品位置记录，\n但保留已购买商品记录。")
-        .then(function(confirmed) {
-            if (confirmed) {
-                self.productPurchase.resetSession();
-                self.addLog("✅ 购买会话已重置，位置记录已清除");
-                self.addLog("现在可以重新寻找之前点击过的商品位置");
-            } else {
-                self.addLog("取消重置操作");
-            }
-        });
 };
 
 module.exports = MainUI;

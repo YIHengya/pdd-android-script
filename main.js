@@ -7,7 +7,6 @@
 const permissions = require('./utils/permissions.js');
 const { COMMON_CONFIG } = require('./config/app-config.js');
 const FloatingWindow = require('./ui/floating-window.js');
-const ProductPurchase = require('./modules/product-purchase.js');
 const ProductFavorite = require('./modules/product-favorite.js');
 const FavoriteSettlement = require('./modules/favorite-settlement.js');
 const AutoPayment = require('./modules/auto-payment.js');
@@ -21,7 +20,6 @@ const { GlobalStopManager } = require('./utils/common.js');
  */
 function MainApp() {
     this.floatingWindow = null;
-    this.productPurchase = null;
     this.productFavorite = null;
     this.autoPayment = null;
     this.deliveryTracking = null;
@@ -39,7 +37,6 @@ MainApp.prototype.init = function() {
 
     // 创建模块实例
     this.floatingWindow = new FloatingWindow();
-    this.productPurchase = new ProductPurchase();
     this.productFavorite = new ProductFavorite();
     this.favoriteSettlement = new FavoriteSettlement();
     this.autoPayment = new AutoPayment();
@@ -120,11 +117,7 @@ MainApp.prototype.setupCallbacks = function() {
                     logger.addLog(window, "✅ 匹配到delivery模式，开始执行物流追踪");
                     self.deliveryTracking.execute(window, userName);
                 } else {
-                    // 执行购买功能，传入用户名和购买数量
-                    logger.addLog(window, "执行模式: 自动购买 (默认或其他模式)");
-                    logger.addLog(window, "实际模式值: '" + mode + "'");
-                    logger.addLog(window, "进入else分支，执行购买功能");
-                    self.productPurchase.execute(window, priceRange, userName, purchaseQuantity);
+                    logger.addLog(window, "不支持的模式: " + mode);
                 }
             } catch (e) {
                 // 在UI线程中更新日志

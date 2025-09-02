@@ -11,7 +11,7 @@ const { waitTimeManager } = require('../utils/wait-time-manager.js');
 function FloatingMenu() {
     this.menuWindow = null;
     this.visible = false;
-    this.currentMode = 'purchase'; // 默认购买模式
+    this.currentMode = 'favorite'; // 默认收藏模式
     this.onStartCallback = null;
     this.onStopCallback = null;
     this.onModeChangeCallback = null;
@@ -139,8 +139,6 @@ FloatingMenu.prototype.create = function() {
 
                     <vertical margin="2dp 5dp 5dp 5dp">
                         <horizontal gravity="center">
-                            <button id="purchaseModeBtn" text="商品购买模式" textColor="#ffffff" bg="#2196F3"
-                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="favoriteModeBtn" text="商品收藏模式" textColor="#666666" bg="#E0E0E0"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="favoriteSettlementModeBtn" text="收藏结算" textColor="#666666" bg="#E0E0E0"
@@ -395,11 +393,6 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             }
         });
 
-        // 购买模式按钮事件处理
-        this.menuWindow.purchaseModeBtn.click(function() {
-            self.switchToMode('purchase');
-        });
-
         // 支付模式按钮事件处理
         this.menuWindow.paymentModeBtn.click(function() {
             self.switchToMode('payment');
@@ -504,7 +497,7 @@ FloatingMenu.prototype.stopScript = function() {
  * 设置模式
  */
 FloatingMenu.prototype.setMode = function(mode) {
-    this.currentMode = mode || 'purchase';
+    this.currentMode = mode || 'favorite';
     this.switchToMode(this.currentMode);
 };
 
@@ -515,8 +508,6 @@ FloatingMenu.prototype.switchToMode = function(mode) {
     this.currentMode = mode;
 
     // 重置所有按钮样式
-    this.menuWindow.purchaseModeBtn.attr('textColor', '#666666');
-    this.menuWindow.purchaseModeBtn.attr('bg', '#E0E0E0');
     this.menuWindow.paymentModeBtn.attr('textColor', '#666666');
     this.menuWindow.paymentModeBtn.attr('bg', '#E0E0E0');
     this.menuWindow.favoriteModeBtn.attr('textColor', '#666666');
@@ -533,13 +524,7 @@ FloatingMenu.prototype.switchToMode = function(mode) {
     this.menuWindow.favoriteSettlementControls.attr('visibility', 'gone');
     this.menuWindow.deliveryControls.attr('visibility', 'gone');
 
-    if (mode === 'purchase') {
-        // 切换到购买模式
-        this.menuWindow.purchaseModeBtn.attr('textColor', '#ffffff');
-        this.menuWindow.purchaseModeBtn.attr('bg', '#2196F3');
-        this.menuWindow.purchaseControls.attr('visibility', 'visible');
-        this.addLog("切换到购买模式");
-    } else if (mode === 'payment') {
+    if (mode === 'payment') {
         // 切换到支付模式
         this.menuWindow.paymentModeBtn.attr('textColor', '#ffffff');
         this.menuWindow.paymentModeBtn.attr('bg', '#FF9800');
@@ -574,7 +559,7 @@ FloatingMenu.prototype.switchToMode = function(mode) {
  * 更新模式按钮状态
  */
 FloatingMenu.prototype.updateModeButtons = function() {
-    // 初始化时设置默认的购买模式
+    // 初始化时设置默认的收藏模式
     this.switchToMode(this.currentMode);
 };
 
