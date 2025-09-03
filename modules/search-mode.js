@@ -151,6 +151,24 @@ SearchMode.prototype.execute = function(window, keyword, options){
         }
       }catch(_){ }
 
+      // 新增：先判断是否已收藏
+      try{
+        if(this.isProductAlreadyFavorited(window)){
+          logger.addLog(window, '🔖 该商品已在收藏中，跳过本商品');
+          if(!this.backToProductListPage(window)){
+            logger.addLog(window, '⚠️ 无法返回列表页，回主页并重新搜索');
+            this.homeNavigation.goToHomePage(window);
+            waitTimeManager.wait('pageStable');
+            if(!this.searchNavigation.focusSearchBar()){
+              logger.addLog(window, '⚠️ 重新聚焦搜索框失败');
+            }
+            this.searchNavigation.inputKeywordAndSearch(keyword);
+            waitTimeManager.wait('pageStable');
+          }
+          continue;
+        }
+      }catch(_){}
+
       // 收藏
       var favoriteSuccess = this.favoriteProduct(window);
       // 收藏后兜底：再次尝试关闭可能残留的规格弹窗/遮罩

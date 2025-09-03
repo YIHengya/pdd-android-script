@@ -129,6 +129,16 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
 
             logger.addLog(window, "✅ 权限检查通过，开始收藏流程");
 
+            // 新增：先判断是否已收藏
+            try{
+                if(this.isProductAlreadyFavorited(window)){
+                    logger.addLog(window, "🔖 该商品已在收藏中，跳过本商品");
+                    this.navigationHelper.goToHomePage(window);
+                    waitTimeManager.wait('pageStable');
+                    continue;
+                }
+            }catch(_){ }
+
             // 收藏商品
             var favoriteSuccess = this.favoriteProduct(window);
 
