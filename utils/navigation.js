@@ -8,6 +8,7 @@ const DeliveryNavigation = require('./navigation/delivery-navigation.js');
 const { PDD_CONFIG } = require('../config/app-config.js');
 const { isInApp } = require('./common.js');
 const logger = require('./logger.js');
+const SearchNavigation = require('./navigation/search-navigation.js');
 
 /**
  * 导航工具构造函数 - 统一导航管理器
@@ -18,6 +19,7 @@ function NavigationHelper() {
     this.personalNav = new PersonalNavigation();
     this.paymentNav = new PaymentNavigation();
     this.deliveryNav = new DeliveryNavigation();
+    this.searchNav = new SearchNavigation();
 }
 
 /**
@@ -90,6 +92,28 @@ NavigationHelper.prototype.isAtPendingPaymentPage = function(window) {
  */
 NavigationHelper.prototype.isAtPendingDeliveryPage = function(window) {
     return this.deliveryNav.isAtPendingDeliveryPage(window);
+};
+
+/**
+ * 检查是否在商品搜索结果列表页
+ */
+NavigationHelper.prototype.isAtProductListPage = function() {
+    return this.searchNav.isOnProductListPage();
+};
+
+/**
+ * 打开搜索框（进入搜索态）
+ */
+NavigationHelper.prototype.goToSearchPage = function(window) {
+    return this.searchNav.focusSearchBar();
+};
+
+/**
+ * 进行一次搜索
+ */
+NavigationHelper.prototype.search = function(window, keyword) {
+    this.searchNav.inputKeywordAndSearch(keyword);
+    return true;
 };
 
 /**

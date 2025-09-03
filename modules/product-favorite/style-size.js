@@ -115,6 +115,8 @@ function swipeLeftFindCheapestVariant(window, maxSteps){
 	var bestPrice = initPrice !== null ? initPrice : Number.POSITIVE_INFINITY;
 	var bestIndex = 0; // 相对起点的步数（向左为正）
 	var currentIndex = 0;
+	var noImproveSteps = 0;
+	var noImproveLimit = 8; // 连续无改进达到该阈值提前结束
 
 	for(var step=1; step<=maxSteps; step++){
 		if(!swipeWithin(window, imgBounds, 'left')) break;
@@ -126,9 +128,19 @@ function swipeLeftFindCheapestVariant(window, maxSteps){
 			if(cur < bestPrice){
 				bestPrice = cur;
 				bestIndex = currentIndex;
+				noImproveSteps = 0;
 				logger.addLog(window, "发现更低价: " + bestPrice + "，记录步数=" + bestIndex);
+			}else{
+				noImproveSteps++;
 			}
 		}
+
+		// 提前结束条件1：价格连续无改进
+		if(noImproveSteps >= noImproveLimit){
+			logger.addLog(window, "连续"+noImproveSteps+"次无更低价，提前结束搜索");
+			break;
+		}
+		// 移除轮播回到起始价格的提前结束判断，继续尝试直到达到目标或超出最大步数
 	}
 
 	// 如果最佳步数不是0，则向右回退到最低价对应的规格
@@ -157,6 +169,7 @@ function swipeLeftUntilPriceBelow(window, threshold, maxSteps){
 	}
 
 	var cur = getCurrentMinPrice(window);
+	var initPrice = cur;
 	if(cur !== null){
 		logger.addLog(window, "初始价格: " + cur);
 		if(cur < threshold){
@@ -187,9 +200,60 @@ function swipeLeftUntilPriceBelow(window, threshold, maxSteps){
 				return true;
 			}
 		}
+		// 仅保留达到阈值的停止条件，其余继续尝试直到超出最大步数
 	}
 
 	logger.addLog(window, "⚠️ 未在限定步数内达到目标阈值" + (cur!==null ? (", 最后价格: " + cur) : ""));
+	return false;
+}
+
+function swipeLeftUntilWithinRange(window, minValue, maxValue, maxSteps){
+	maxSteps = maxSteps || 60;
+	if(typeof minValue !== 'number') minValue = 0;
+	if(typeof maxValue !== 'number') maxValue = Number.POSITIVE_INFINITY;
+
+	var imgBounds = clickProductMainImage(window);
+	if(!imgBounds){
+		logger.addLog(window, "❌ 无法定位主图，无法执行横向滑动");
+		return false;
+	}
+
+	var cur = getCurrentMinPrice(window);
+	var initPrice = cur;
+	if(cur !== null){
+		logger.addLog(window, "初始价格: " + cur);
+		if(cur >= minValue && cur <= maxValue){
+			logger.addLog(window, "✅ 初始即在区间内: " + cur + " ∈ ["+minValue+","+maxValue+"]");
+			var cx0 = Math.floor(device.width / 2);
+			var cy0 = Math.floor(device.height / 2);
+			logger.addLog(window, "点击屏幕中间确认("+cx0+","+cy0+")");
+			click(cx0, cy0);
+			waitTimeManager.wait(600);
+			return true;
+		}
+	} else {
+		logger.addLog(window, "⚠️ 未获取到初始价格，开始尝试滑动");
+	}
+
+	for(var step=1; step<=maxSteps; step++){
+		if(!swipeWithin(window, imgBounds, 'left')) break;
+		cur = getCurrentMinPrice(window);
+		if(cur !== null){
+			logger.addLog(window, "第"+step+"次滑动后价格: " + cur);
+			if(cur >= minValue && cur <= maxValue){
+				logger.addLog(window, "✅ 达到目标: 价格 " + cur + " ∈ ["+minValue+","+maxValue+"]");
+				var cx = Math.floor(device.width / 2);
+				var cy = Math.floor(device.height / 2);
+				logger.addLog(window, "点击屏幕中间确认("+cx+","+cy+")");
+				click(cx, cy);
+				waitTimeManager.wait(600);
+				return true;
+			}
+		}
+		// 仅保留达到区间的停止条件，其余继续尝试直到超出最大步数
+	}
+
+	logger.addLog(window, "⚠️ 未在限定步数内达到区间目标" + (cur!==null ? (", 最后价格: " + cur) : ""));
 	return false;
 }
 
@@ -200,5 +264,6 @@ module.exports = {
 	swipeLeftFindCheapestVariant: swipeLeftFindCheapestVariant,
 	swipeLeftUntilPriceBelow: swipeLeftUntilPriceBelow,
 	selectCheapest: function(window, maxSteps){ return swipeLeftFindCheapestVariant(window, maxSteps); },
-	selectUntilBelow: function(window, threshold, maxSteps){ return swipeLeftUntilPriceBelow(window, threshold, maxSteps); }
+	selectUntilBelow: function(window, threshold, maxSteps){ return swipeLeftUntilPriceBelow(window, threshold, maxSteps); },
+	selectWithinRange: function(window, minValue, maxValue, maxSteps){ return swipeLeftUntilWithinRange(window, minValue, maxValue, maxSteps); }
 }; 

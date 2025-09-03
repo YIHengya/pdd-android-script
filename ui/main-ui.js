@@ -534,7 +534,11 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     try { keyword = window.searchKeywordInput.getText().toString(); } catch (e) { keyword = '手机壳'; }
                     keyword = (keyword && String(keyword).trim()) || '手机壳';
                     self.addLog("执行模式: 搜索，关键词: " + keyword);
-                    self.searchMode.execute(window, keyword);
+                    self.searchMode.execute(window, keyword, {
+                        priceRange: priceRange,
+                        favoriteQuantity: purchaseQuantity,
+                        userName: self.getUserName()
+                    });
                 } else {
                     self.addLog("不支持的模式: " + mode);
                 }
@@ -643,7 +647,11 @@ MainUI.prototype.startScript = function() {
                 keyword = (keyword && String(keyword).trim()) || '手机壳';
                 self.addLog("执行模式: 搜索，关键词: " + keyword);
                 if (!self.searchMode) self.searchMode = new (require('../modules/search-mode.js'))();
-                self.searchMode.execute(null, keyword);
+                self.searchMode.execute(null, keyword, {
+                    priceRange: priceRange,
+                    favoriteQuantity: purchaseQuantity,
+                    userName: self.getUserName()
+                });
             } else {
                 self.addLog("不支持的模式: " + self.currentMode);
             }
