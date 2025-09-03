@@ -11,6 +11,7 @@ const UserInfo = require('../modules/user-info.js');
 const UserInfoManager = require('../utils/user-info-manager.js');
 const FloatingWindow = require('./floating-window.js');
 const { waitTimeManager } = require('../utils/wait-time-manager.js');
+const SearchMode = require('../modules/search-mode.js');
 
 /**
  * 主界面构造函数
@@ -26,6 +27,7 @@ function MainUI() {
     this.isFloatingWindowActive = false;
     this.scriptThread = null;
     this.currentMode = 'favorite'; // 默认为收藏模式
+    this.searchMode = null;
 }
 
 /**
@@ -80,8 +82,18 @@ MainUI.prototype.show = function() {
                                             w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                     <button id="deliveryModeBtn" text="待收货" textColor="#666666" bg="#E0E0E0"
                                             w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
+                                    <button id="searchModeBtn" text="搜索模式" textColor="#666666" bg="#E0E0E0"
+                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                 </horizontal>
 
+                                <vertical id="searchModeArea" visibility="gone" margin="0 0 8dp 0">
+                                    <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                                        <text text="关键词:" textSize="12sp" textColor="#666666" w="60dp"/>
+                                        <input id="searchKeywordInput" hint="例如：手机壳" text="手机壳" textColor="#333333" w="*"/>
+                                    </horizontal>
+                                    <text text="提示：启动脚本后将自动在搜索框输入并点击搜索" textSize="10sp" textColor="#888888"/>
+                                </vertical>
+                                
                                 {/* 模式说明区域 */}
                                 <vertical id="modeDescriptionArea" margin="0 0 12dp 0" bg="#f5f5f5" padding="8dp">
                                     <text id="modeDescription" text="自动批量收藏符合价格区间的商品到收藏夹"
@@ -126,6 +138,33 @@ MainUI.prototype.show = function() {
                             </vertical>
                         </card>
 
+                {/* 操作按钮区域 */}
+                <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
+                    <vertical padding="16dp">
+                        <text text="快速操作" textSize="18sp" textStyle="bold" textColor="#333333" margin="0 0 12dp 0"/>
+                        
+                        <horizontal gravity="center" margin="0 0 8dp 0">
+                            <button id="startScriptBtn" text="启动脚本"
+                                    textColor="#ffffff" bg="#FF5722"
+                                    w="100dp" h="45dp" margin="8dp" textSize="14sp"/>
+                            <button id="stopScriptBtn" text="停止脚本"
+                                    textColor="#ffffff" bg="#9E9E9E"
+                                    w="100dp" h="45dp" margin="8dp" textSize="14sp" enabled="false"/>
+                        </horizontal>
+
+                        {/* 移除与已购买记录相关的操作按钮 */}
+                        
+                        <horizontal gravity="center" margin="8dp 0 0 0">
+                            <button id="helpBtn" text="帮助"
+                                    textColor="#ffffff" bg="#607D8B"
+                                    w="70dp" h="40dp" margin="2dp" textSize="12sp"/>
+                            <button id="aboutBtn" text="关于"
+                                    textColor="#ffffff" bg="#795548"
+                                    w="70dp" h="40dp" margin="2dp" textSize="12sp"/>
+                        </horizontal>
+                    </vertical>
+                </card>
+
                 {/* 用户信息区域 */}
                 <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
                     <vertical padding="16dp">
@@ -161,33 +200,6 @@ MainUI.prototype.show = function() {
                         </horizontal>
                     </vertical>
                 </card>
-
-                        {/* 操作按钮区域 */}
-                        <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
-                            <vertical padding="16dp">
-                                <text text="快速操作" textSize="18sp" textStyle="bold" textColor="#333333" margin="0 0 12dp 0"/>
-                                
-                                <horizontal gravity="center" margin="0 0 8dp 0">
-                                    <button id="startScriptBtn" text="启动脚本"
-                                            textColor="#ffffff" bg="#FF5722"
-                                            w="100dp" h="45dp" margin="8dp" textSize="14sp"/>
-                                    <button id="stopScriptBtn" text="停止脚本"
-                                            textColor="#ffffff" bg="#9E9E9E"
-                                            w="100dp" h="45dp" margin="8dp" textSize="14sp" enabled="false"/>
-                                </horizontal>
-
-                                {/* 移除与已购买记录相关的操作按钮 */}
-                                
-                                <horizontal gravity="center" margin="8dp 0 0 0">
-                                    <button id="helpBtn" text="帮助"
-                                            textColor="#ffffff" bg="#607D8B"
-                                            w="70dp" h="40dp" margin="2dp" textSize="12sp"/>
-                                    <button id="aboutBtn" text="关于"
-                                            textColor="#ffffff" bg="#795548"
-                                            w="70dp" h="40dp" margin="2dp" textSize="12sp"/>
-                                </horizontal>
-                            </vertical>
-                        </card>
 
                         {/* 日志区域 */}
                         <card cardCornerRadius="8dp" cardElevation="4dp" margin="8dp">
@@ -259,6 +271,7 @@ MainUI.prototype.initializeModules = function() {
     this.deliveryTracking = new DeliveryTracking();
     this.userInfo = new UserInfo();
     this.userInfoManager = new UserInfoManager();
+    this.searchMode = new SearchMode();
 
     // 设置用户信息管理器的UserInfo实例
     this.userInfoManager.setUserInfoInstance(this.userInfo);
@@ -312,6 +325,9 @@ MainUI.prototype.setupEventHandlers = function() {
     });
     ui.deliveryModeBtn && ui.deliveryModeBtn.click(function() {
         self.switchToMode('delivery');
+    });
+    ui.searchModeBtn && ui.searchModeBtn.click(function() {
+        self.switchToMode('search');
     });
     
     // 等待时间倍率滑动条事件处理
@@ -511,6 +527,13 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                     // 执行待收货物流追踪功能
                     self.addLog("✅ 匹配到delivery模式，开始执行物流追踪");
                     self.deliveryTracking.execute(window, userName);
+                } else if (mode === 'search') {
+                    // 执行搜索模式
+                    var keyword = null;
+                    try { keyword = window.searchKeywordInput.getText().toString(); } catch (e) { keyword = '手机壳'; }
+                    keyword = (keyword && String(keyword).trim()) || '手机壳';
+                    self.addLog("执行模式: 搜索，关键词: " + keyword);
+                    self.searchMode.execute(window, keyword);
                 } else {
                     self.addLog("不支持的模式: " + mode);
                 }
@@ -613,6 +636,13 @@ MainUI.prototype.startScript = function() {
             } else if (self.currentMode === 'delivery') {
                 self.addLog("执行模式: 待收货物流追踪");
                 self.deliveryTracking.execute(null, self.getUserName());
+            } else if (self.currentMode === 'search') {
+                var keyword = null;
+                try { keyword = ui.searchKeywordInput.getText().toString(); } catch (e) { keyword = '手机壳'; }
+                keyword = (keyword && String(keyword).trim()) || '手机壳';
+                self.addLog("执行模式: 搜索，关键词: " + keyword);
+                if (!self.searchMode) self.searchMode = new (require('../modules/search-mode.js'))();
+                self.searchMode.execute(null, keyword);
             } else {
                 self.addLog("不支持的模式: " + self.currentMode);
             }
@@ -730,6 +760,8 @@ MainUI.prototype.switchToMode = function(mode) {
     ui.paymentModeBtn.attr('bg', '#E0E0E0');
     ui.deliveryModeBtn.attr('textColor', '#666666');
     ui.deliveryModeBtn.attr('bg', '#E0E0E0');
+    ui.searchModeBtn && ui.searchModeBtn.attr('textColor', '#666666');
+    ui.searchModeBtn && ui.searchModeBtn.attr('bg', '#E0E0E0');
     
     // 设置当前模式按钮样式
     if (mode === 'favorite') {
@@ -737,21 +769,31 @@ MainUI.prototype.switchToMode = function(mode) {
         ui.favoriteModeBtn.attr('bg', '#E91E63');
         ui.currentModeDisplay.setText("当前模式：商品收藏模式");
         ui.modeDescription.setText("自动批量收藏符合价格区间的商品到收藏夹");
+        ui.searchModeArea && ui.searchModeArea.attr('visibility', 'gone');
     } else if (mode === 'favoriteSettlement') {
         ui.favoriteSettlementModeBtn.attr('textColor', '#ffffff');
         ui.favoriteSettlementModeBtn.attr('bg', '#9C27B0');
         ui.currentModeDisplay.setText("当前模式：收藏结算模式");
         ui.modeDescription.setText("自动导航到收藏页面，查看收藏商品并进行结算");
+        ui.searchModeArea && ui.searchModeArea.attr('visibility', 'gone');
     } else if (mode === 'payment') {
         ui.paymentModeBtn.attr('textColor', '#ffffff');
         ui.paymentModeBtn.attr('bg', '#FF9800');
         ui.currentModeDisplay.setText("当前模式：支付模式");
         ui.modeDescription.setText("自动导航到待支付页面，检测待支付订单并准备支付流程");
+        ui.searchModeArea && ui.searchModeArea.attr('visibility', 'gone');
     } else if (mode === 'delivery') {
         ui.deliveryModeBtn.attr('textColor', '#ffffff');
         ui.deliveryModeBtn.attr('bg', '#FF5722');
         ui.currentModeDisplay.setText("当前模式：待收货模式");
         ui.modeDescription.setText("自动导航到待收货页面，批量获取物流单号并复制到剪贴板");
+        ui.searchModeArea && ui.searchModeArea.attr('visibility', 'gone');
+    } else if (mode === 'search') {
+        ui.searchModeBtn && ui.searchModeBtn.attr('textColor', '#ffffff');
+        ui.searchModeBtn && ui.searchModeBtn.attr('bg', '#03A9F4');
+        ui.currentModeDisplay.setText("当前模式：搜索模式");
+        ui.modeDescription.setText("在搜索框输入关键词并点击搜索，进入结果列表页");
+        ui.searchModeArea && ui.searchModeArea.attr('visibility', 'visible');
     }
     
     this.addLog("已切换到" + ui.currentModeDisplay.getText());

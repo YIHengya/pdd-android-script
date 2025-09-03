@@ -52,16 +52,11 @@ FloatingMenu.prototype.create = function() {
                             <text id="maxPriceText" text="0.80" textColor="#666666" textSize="11sp" w="35dp" gravity="center"/>
                         </horizontal>
 
-                        <horizontal gravity="center_vertical" margin="0 0 5dp 0">
-                            <text text="购买数量:" textColor="#333333" textSize="12sp" w="60dp"/>
-                            <text id="quantityDisplay" text="1件" textColor="#333333" textSize="12sp" textStyle="bold" margin="5dp 0 0 0"/>
-                        </horizontal>
-
                         <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                             <text text="数量:" textColor="#666666" textSize="11sp" w="35dp"/>
+                            <text id="quantityText" text="(1件)" textColor="#666666" textSize="11sp" gravity="left"/>
                             <seekbar id="quantitySeekbar" w="*" h="12dp" margin="0 4dp 0 4dp"
                                      max="99" progress="0" progressTint="#9C27B0" thumbTint="#9C27B0"/>
-                            <text id="quantityText" text="1" textColor="#666666" textSize="11sp" w="25dp" gravity="center"/>
                         </horizontal>
                     </vertical>
 
@@ -137,15 +132,28 @@ FloatingMenu.prototype.create = function() {
                         </horizontal>
                     </vertical>
 
+                    <vertical id="searchControls" margin="5dp 5dp 2dp 5dp" visibility="gone">
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="搜索功能:" textColor="#333333" textSize="14sp" textStyle="bold"/>
+                        </horizontal>
+                        <horizontal gravity="center_vertical" margin="0 0 8dp 0">
+                            <text text="关键词:" textColor="#666666" textSize="12sp" w="50dp"/>
+                            <input id="searchKeywordInput" hint="例如：手机壳" text="手机壳" textColor="#333333" w="*"/>
+                        </horizontal>
+                        <text text="提示：启动脚本将自动在搜索框输入关键词并点击搜索" textColor="#888888" textSize="10sp"/>
+                    </vertical>
+
                     <vertical margin="2dp 5dp 5dp 5dp">
                         <horizontal gravity="center">
-                            <button id="favoriteModeBtn" text="商品收藏模式" textColor="#666666" bg="#E0E0E0"
+                            <button id="favoriteModeBtn" text="首页商品收藏模式" textColor="#666666" bg="#E0E0E0"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="favoriteSettlementModeBtn" text="收藏结算" textColor="#666666" bg="#E0E0E0"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="paymentModeBtn" text="支付模式" textColor="#666666" bg="#E0E0E0"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                             <button id="deliveryModeBtn" text="待收货" textColor="#666666" bg="#E0E0E0"
+                                    w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
+                            <button id="searchModeBtn" text="搜索模式" textColor="#666666" bg="#E0E0E0"
                                     w="52dp" h="35dp" margin="1dp" textSize="8sp"/>
                         </horizontal>
                     </vertical>
@@ -413,6 +421,11 @@ FloatingMenu.prototype.setupEventHandlers = function() {
             self.switchToMode('delivery');
         });
 
+        // 搜索模式按钮事件处理
+        this.menuWindow.searchModeBtn.click(function() {
+            self.switchToMode('search');
+        });
+
 
 
     } catch (e) {
@@ -437,13 +450,6 @@ FloatingMenu.prototype.startScript = function() {
     var minPrice = 0.1 + (minProgress / 100.0) * 1.9;
     var maxPrice = 0.1 + (maxProgress / 100.0) * 1.9;
 
-    if (isNaN(minPrice) || isNaN(maxPrice) || minPrice <= 0 || maxPrice <= 0 || minPrice >= maxPrice) {
-        this.addLog("请设置有效的价格区间");
-        this.menuWindow.scriptSwitch.setChecked(false);
-        GlobalStopManager.endScript(); // 启动失败，减少计数
-        return;
-    }
-
     // 获取购买数量
     var purchaseQuantity = 1;
     try {
@@ -454,7 +460,17 @@ FloatingMenu.prototype.startScript = function() {
         purchaseQuantity = 1;
     }
 
-    this.addLog("开始执行脚本，价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + " 元，模式: " + this.currentMode + "，数量: " + purchaseQuantity + "件");
+    // 搜索模式不校验价格区间
+    if (this.currentMode !== 'search') {
+        if (isNaN(minPrice) || isNaN(maxPrice) || minPrice <= 0 || maxPrice <= 0 || minPrice >= maxPrice) {
+            this.addLog("请设置有效的价格区间");
+            this.menuWindow.scriptSwitch.setChecked(false);
+            GlobalStopManager.endScript(); // 启动失败，减少计数
+            return;
+        }
+    }
+
+    this.addLog("开始执行脚本，模式: " + this.currentMode + (this.currentMode === 'search' ? '' : ("，价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + " 元，数量: " + purchaseQuantity + "件")));
     this.updateStatus("运行中");
 
     // 使用setTimeout避免在UI线程中执行阻塞操作
@@ -469,7 +485,7 @@ FloatingMenu.prototype.startScript = function() {
 
             // 添加调试日志
             self.addLog("当前模式: " + self.currentMode);
-            self.addLog("传递参数 - 模式: " + self.currentMode + ", 价格区间: " + minPrice + "-" + maxPrice + " 元, 数量: " + purchaseQuantity + "件");
+            self.addLog("传递参数 - 模式: " + self.currentMode + (self.currentMode === 'search' ? '' : (", 价格区间: " + minPrice + "-" + maxPrice + " 元, 数量: " + purchaseQuantity + "件")));
 
             self.onStartCallback(self.menuWindow, priceRange, self.currentMode, purchaseQuantity);
         }
@@ -516,6 +532,8 @@ FloatingMenu.prototype.switchToMode = function(mode) {
     this.menuWindow.favoriteSettlementModeBtn.attr('bg', '#E0E0E0');
     this.menuWindow.deliveryModeBtn.attr('textColor', '#666666');
     this.menuWindow.deliveryModeBtn.attr('bg', '#E0E0E0');
+    this.menuWindow.searchModeBtn.attr('textColor', '#666666');
+    this.menuWindow.searchModeBtn.attr('bg', '#E0E0E0');
 
     // 隐藏所有控件
     this.menuWindow.purchaseControls.attr('visibility', 'gone');
@@ -523,6 +541,7 @@ FloatingMenu.prototype.switchToMode = function(mode) {
     this.menuWindow.favoriteControls.attr('visibility', 'gone');
     this.menuWindow.favoriteSettlementControls.attr('visibility', 'gone');
     this.menuWindow.deliveryControls.attr('visibility', 'gone');
+    this.menuWindow.searchControls.attr('visibility', 'gone');
 
     if (mode === 'payment') {
         // 切换到支付模式
@@ -548,6 +567,12 @@ FloatingMenu.prototype.switchToMode = function(mode) {
         this.menuWindow.deliveryModeBtn.attr('bg', '#FF5722');
         this.menuWindow.deliveryControls.attr('visibility', 'visible');
         this.addLog("切换到待收货模式");
+    } else if (mode === 'search') {
+        // 切换到搜索模式
+        this.menuWindow.searchModeBtn.attr('textColor', '#ffffff');
+        this.menuWindow.searchModeBtn.attr('bg', '#03A9F4');
+        this.menuWindow.searchControls.attr('visibility', 'visible');
+        this.addLog("切换到搜索模式");
     }
 
     if (this.onModeChangeCallback) {
@@ -593,8 +618,7 @@ FloatingMenu.prototype.updatePriceRangeDisplay = function(minPrice, maxPrice) {
 FloatingMenu.prototype.updateQuantityDisplay = function(quantity) {
     if (this.menuWindow) {
         ui.run(() => {
-            this.menuWindow.quantityDisplay.setText(quantity + "件");
-            this.menuWindow.quantityText.setText(quantity.toString());
+            this.menuWindow.quantityText.setText("(" + quantity + "件)");
         });
     }
 };
