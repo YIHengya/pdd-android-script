@@ -412,69 +412,87 @@ HomeNavigation.prototype.isAtHomePage = function(window) {
 
     // 检查主页特征的函数
     var checkHomeIndicators = function() {
-        var foundIndicators = 0;
-        var totalChecks = 0;
-
-        // 1. 检查底部导航栏的"首页"按钮（最重要的标识）
-        totalChecks++;
+        // 1) 底部“首页”按钮（必须项）
+        var homeNavPresent = false;
         var homeNavButtons = [
             text("首页"),
             textContains("首页")
         ];
-
         for (var i = 0; i < homeNavButtons.length; i++) {
             var homeNavs = homeNavButtons[i].find();
             for (var j = 0; j < homeNavs.length; j++) {
                 var bounds = homeNavs[j].bounds();
-                // 检查是否在屏幕底部（底部导航栏区域）
                 if (bounds.bottom > device.height * 0.8) {
                     logger.addLog(window, "✅ 找到底部导航栏的首页按钮");
-                    foundIndicators++;
+                    homeNavPresent = true;
                     break;
                 }
             }
-            if (foundIndicators > 0) break;
+            if (homeNavPresent) break;
         }
 
-        // 2. 检查"推荐"标识（但需要在页面上方区域）
-        totalChecks++;
-        var recommendElements = text("推荐").find();
-        for (var i = 0; i < recommendElements.length; i++) {
-            var bounds = recommendElements[i].bounds();
-            // 推荐标识应该在页面上半部分，不在底部导航区域
-            if (bounds.top < device.height * 0.7 && bounds.bottom < device.height * 0.8) {
-                logger.addLog(window, "✅ 找到推荐标识（在合适位置）");
-                foundIndicators++;
-                break;
+        // 2) 顶部分类标签（推荐/男装/食品/手机/百货等），要求至少命中3个，且位于页面上半部分
+        var categoryKeywords = [
+            "推荐", "男装", "食品", "手机", "百货",
+            "女装", "美妆", "电器", "家居", "母婴",
+            "生鲜", "鞋包", "运动", "内衣", "家电"
+        ];
+        var categoryFoundNames = [];
+        for (var k = 0; k < categoryKeywords.length; k++) {
+            try {
+                var elements = text(categoryKeywords[k]).find();
+                for (var m = 0; m < elements.length; m++) {
+                    var cb = elements[m].bounds();
+                    // 过滤底部导航区域，且尽量位于上半部分（更像顶部分类tab）
+                    if (cb.top < device.height * 0.5 && cb.bottom < device.height * 0.8) {
+                        categoryFoundNames.push(categoryKeywords[k]);
+                        break;
+                    }
+                }
+            } catch (e) {}
+        }
+        // 去重
+        var uniqueCategories = [];
+        for (var n = 0; n < categoryFoundNames.length; n++) {
+            if (uniqueCategories.indexOf(categoryFoundNames[n]) === -1) {
+                uniqueCategories.push(categoryFoundNames[n]);
             }
         }
+        if (uniqueCategories.length > 0) {
+            logger.addLog(window, "检测到的顶部分类: " + uniqueCategories.join(", "));
+        }
 
-        // 3. 检查搜索框（主页特有）
-        totalChecks++;
+        // 3) 顶部搜索框（只作为辅证，不叠加计数）
+        var searchFound = false;
         var searchIndicators = [
             textContains("搜索"),
             desc("搜索"),
             descContains("搜索")
         ];
-
-        for (var i = 0; i < searchIndicators.length; i++) {
-            var searchElements = searchIndicators[i].find();
-            for (var j = 0; j < searchElements.length; j++) {
-                var bounds = searchElements[j].bounds();
-                // 搜索框通常在页面顶部区域
-                if (bounds.top < device.height * 0.3) {
+        for (var si = 0; si < searchIndicators.length; si++) {
+            var searchElements = searchIndicators[si].find();
+            for (var sj = 0; sj < searchElements.length; sj++) {
+                var sb = searchElements[sj].bounds();
+                if (sb.top < device.height * 0.3) {
                     logger.addLog(window, "✅ 找到搜索框");
-                    foundIndicators++;
+                    searchFound = true;
                     break;
                 }
             }
-            if (foundIndicators >= 2) break;
+            if (searchFound) break;
         }
 
-        logger.addLog(window, "主页特征检查结果: " + foundIndicators + "/" + totalChecks);
+        // 决策：
+        // - 强规则：必须满足 底部首页按钮 存在
+        // - 主要规则：顶部分类命中 >= 3（更像首页顶部的分类tab）
+        // - 搜索框仅作为辅证，不独立计数，避免在搜索结果页误判
+        if (homeNavPresent && uniqueCategories.length >= 3) {
+            logger.addLog(window, "主页特征检查结果: 底部首页=是, 顶部分类=" + uniqueCategories.length + ", 搜索框=" + (searchFound ? "是" : "否"));
+            return true;
+        }
 
-        // 至少需要找到2个特征才认为是主页（底部首页按钮 + 其他特征）
-        return foundIndicators >= 2;
+        logger.addLog(window, "主页特征检查结果: 底部首页=" + (homeNavPresent ? "是" : "否") + ", 顶部分类=" + uniqueCategories.length + ", 搜索框=" + (searchFound ? "是" : "否"));
+        return false;
     };
 
     // 先检查当前页面是否已经在主页
