@@ -12,6 +12,7 @@ const UserInfoManager = require('../utils/user-info-manager.js');
 const FloatingWindow = require('./floating-window.js');
 const { waitTimeManager } = require('../utils/wait-time-manager.js');
 const SearchMode = require('../modules/search-mode.js');
+const logger = require('../utils/logger.js');
 
 /**
  * 主界面构造函数
@@ -832,20 +833,34 @@ MainUI.prototype.getUserName = function() {
  * 添加日志
  */
 MainUI.prototype.addLog = function(message) {
+    var self = this;
     var timestamp = new Date().toLocaleTimeString();
     var logMessage = "[" + timestamp + "] " + message;
 
+    // 控制台输出，便于调试
+    try { console.log(logMessage); } catch (e) {}
+
+    // 主界面日志区更新
     ui.run(function() {
-        var currentText = ui.logText.getText();
-        var newText = currentText + "\n" + logMessage;
+        try {
+            var currentText = ui.logText.getText();
+            var newText = currentText + "\n" + logMessage;
 
-        // 限制日志长度，保留最后1000个字符
-        if (newText.length > 1000) {
-            newText = "...\n" + newText.substring(newText.length - 900);
-        }
+            // 限制日志长度，保留最后1000个字符
+            if (newText.length > 1000) {
+                newText = "...\n" + newText.substring(newText.length - 900);
+            }
 
-        ui.logText.setText(newText);
+            ui.logText.setText(newText);
+        } catch (e) {}
     });
+
+    // 同步到悬浮窗日志（如果悬浮窗已创建）
+    try {
+        if (self.floatingWindow && typeof self.floatingWindow.addLog === 'function') {
+            self.floatingWindow.addLog(message);
+        }
+    } catch (e) {}
 };
 
 /**
