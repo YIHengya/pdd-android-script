@@ -269,6 +269,29 @@ FloatingWindow.prototype.setOnStopCallback = function(callback) {
 };
 
 /**
+ * 停止脚本
+ * 强制终止所有正在运行的脚本线程
+ */
+FloatingWindow.prototype.stopScript = function() {
+    // 设置全局停止标志
+    global.scriptStopped = true;
+    
+    // 强制终止所有线程
+    threads.shutDownAll();
+    
+    if (this.floatingMenu) {
+        this.floatingMenu.addLog("已强制终止所有线程");
+        // 更新按钮状态
+        this.floatingMenu.setButtonState(true);
+    }
+    
+    // 调用停止回调
+    if (this.onStopCallback) {
+        this.onStopCallback();
+    }
+};
+
+/**
  * 设置用户信息回调
  * @param {Function} callback 回调函数
  */
@@ -322,6 +345,46 @@ FloatingWindow.prototype.getFloatingMenu = function() {
  */
 FloatingWindow.prototype.getMenuWindow = function() {
     return this.floatingMenu ? this.floatingMenu.getWindow() : null;
+};
+
+/**
+ * 设置价格区间
+ * @param {Object} priceRange 包含min和max的价格区间对象
+ */
+FloatingWindow.prototype.setPriceRange = function(priceRange) {
+    if (this.floatingMenu) {
+        this.floatingMenu.setPriceRange(priceRange);
+    }
+};
+
+/**
+ * 设置当前模式
+ * @param {string} mode 模式名称
+ */
+FloatingWindow.prototype.setCurrentMode = function(mode) {
+    if (this.floatingMenu) {
+        this.floatingMenu.setCurrentMode(mode);
+    }
+};
+
+/**
+ * 设置购买数量
+ * @param {number} quantity 购买数量
+ */
+FloatingWindow.prototype.setPurchaseQuantity = function(quantity) {
+    if (this.floatingMenu) {
+        this.floatingMenu.setPurchaseQuantity(quantity);
+    }
+};
+
+/**
+ * 更新按钮状态
+ * @param {boolean} canStart true: 可以启动脚本, false: 无法启动脚本（脚本运行中）
+ */
+FloatingWindow.prototype.updateButtonState = function(canStart) {
+    if (this.floatingMenu) {
+        this.floatingMenu.setButtonState(canStart);
+    }
 };
 
 module.exports = FloatingWindow;

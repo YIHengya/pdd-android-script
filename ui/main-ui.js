@@ -357,6 +357,12 @@ MainUI.prototype.setupEventHandlers = function() {
                 }
 
                 self.updatePriceDisplay(minPrice, maxPrice);
+                
+                // 同步价格区间到悬浮窗
+                if (self.floatingWindow && self.isFloatingWindowActive) {
+                    var priceRange = self.getCurrentPriceRange();
+                    self.floatingWindow.setPriceRange(priceRange);
+                }
             }
         }
     });
@@ -375,6 +381,12 @@ MainUI.prototype.setupEventHandlers = function() {
                 }
 
                 self.updatePriceDisplay(minPrice, maxPrice);
+                
+                // 同步价格区间到悬浮窗
+                if (self.floatingWindow && self.isFloatingWindowActive) {
+                    var priceRange = self.getCurrentPriceRange();
+                    self.floatingWindow.setPriceRange(priceRange);
+                }
             }
         }
     });
@@ -385,6 +397,11 @@ MainUI.prototype.setupEventHandlers = function() {
             if (fromUser) {
                 var quantity = progress + 1; // 0-99对应1-100件
                 self.updateQuantityDisplay(quantity);
+                
+                // 同步购买数量到悬浮窗
+                if (self.floatingWindow && self.isFloatingWindowActive) {
+                    self.floatingWindow.setPurchaseQuantity(quantity);
+                }
             }
         }
     });
@@ -492,10 +509,18 @@ MainUI.prototype.stopFloatingWindow = function() {
 MainUI.prototype.setupFloatingWindowCallbacks = function() {
     var self = this;
 
+    // 将主界面设置同步到悬浮窗
+    this.syncSettingsToFloatingWindow();
+
     // 设置脚本启动回调
     this.floatingWindow.setOnStartCallback(function(window, priceRange, mode, purchaseQuantity) {
         var quantityText = purchaseQuantity ? ", 数量: " + purchaseQuantity + "件" : "";
         self.addLog("悬浮窗启动脚本: " + mode + "模式, 价格区间: " + priceRange.min.toFixed(2) + "-" + priceRange.max.toFixed(2) + "元" + quantityText);
+
+        // 更新主界面的按钮状态
+        ui.run(function() {
+            self.resetScriptButtons(false); // 禁用启动按钮，启用停止按钮
+        });
 
         // 在新线程中执行脚本
         threads.start(function() {
@@ -547,6 +572,15 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
                 ui.run(function() {
                     self.addLog("脚本执行出错: " + e.message);
                 });
+            } finally {
+                // 恢复按钮状态
+                ui.run(function() {
+                    self.resetScriptButtons(true); // 启用启动按钮，禁用停止按钮
+                    // 同步悬浮窗按钮状态
+                    if (self.floatingWindow) {
+                        self.floatingWindow.updateButtonState(true);
+                    }
+                });
             }
         });
     });
@@ -554,6 +588,10 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
     // 设置脚本停止回调
     this.floatingWindow.setOnStopCallback(function() {
         self.addLog("悬浮窗脚本已停止");
+        // 恢复按钮状态
+        ui.run(function() {
+            self.resetScriptButtons(true); // 启用启动按钮，禁用停止按钮
+        });
     });
 
     // 设置用户信息回调
@@ -579,41 +617,67 @@ MainUI.prototype.setupFloatingWindowCallbacks = function() {
 
 
 /**
- * 启动脚本
+ * 将主界面设置同步到悬浮窗
  */
-MainUI.prototype.startScript = function() {
-    var self = this;
+MainUI.prototype.syncSettingsToFloatingWindow = function() {
+    if (!this.floatingWindow) return;
 
-    // 获取价格区间
+    // 同步价格区间
+    var priceRange = this.getCurrentPriceRange();
+    this.floatingWindow.setPriceRange(priceRange);
+
+    // 同步当前模式
+    this.floatingWindow.setCurrentMode(this.currentMode);
+
+    // 同步购买数量
+    var quantity = this.getCurrentPurchaseQuantity();
+    this.floatingWindow.setPurchaseQuantity(quantity);
+};
+
+/**
+ * 获取当前价格区间
+ */
+MainUI.prototype.getCurrentPriceRange = function() {
     var minProgress = ui.minPriceSeek.getProgress();
     var maxProgress = ui.maxPriceSeek.getProgress();
     var minPrice = 0.1 + (minProgress / 100.0) * 1.9;
     var maxPrice = 0.1 + (maxProgress / 100.0) * 1.9;
 
-    var priceRange = {
+    return {
         min: minPrice,
         max: maxPrice
     };
+};
 
-    // 获取购买数量
-    var purchaseQuantity = 1;
+/**
+ * 获取当前购买数量
+ */
+MainUI.prototype.getCurrentPurchaseQuantity = function() {
     try {
         var quantityProgress = ui.quantitySeek.getProgress();
-        purchaseQuantity = quantityProgress + 1; // 0-99对应1-100件
+        return quantityProgress + 1; // 0-99对应1-100件
     } catch (e) {
-        this.addLog("获取购买数量失败，使用默认值1件");
-        purchaseQuantity = 1;
+        return 1; // 默认1件
     }
+};
+
+MainUI.prototype.startScript = function() {
+    var self = this;
+
+    // 获取价格区间
+    var priceRange = this.getCurrentPriceRange();
+    var minPrice = priceRange.min;
+    var maxPrice = priceRange.max;
+
+    // 获取购买数量
+    var purchaseQuantity = this.getCurrentPurchaseQuantity();
 
     this.addLog("启动脚本: " + ui.currentModeDisplay.getText());
     this.addLog("价格区间: " + minPrice.toFixed(2) + "-" + maxPrice.toFixed(2) + "元");
     this.addLog("收藏数量: " + purchaseQuantity + "件");
 
     // 更新按钮状态
-    ui.startScriptBtn.setEnabled(false);
-    ui.stopScriptBtn.setEnabled(true);
-    ui.startScriptBtn.attr("bg", "#9E9E9E");
-    ui.stopScriptBtn.attr("bg", "#FF5722");
+    this.resetScriptButtons(false); // 禁用启动按钮，启用停止按钮
 
     // 在新线程中执行脚本
     this.scriptThread = threads.start(function() {
@@ -673,22 +737,57 @@ MainUI.prototype.startScript = function() {
  * 停止脚本
  */
 MainUI.prototype.stopScript = function() {
+    // 设置全局停止标志
+    global.scriptStopped = true;
+    
+    // 尝试中断线程
     if (this.scriptThread) {
-        this.scriptThread.interrupt();
-        this.scriptThread = null;
-        this.addLog("脚本已停止");
+        try {
+            // 发送中断信号
+            this.scriptThread.interrupt();
+            
+            // 给线程一点时间响应中断
+            setTimeout(function() {
+                threads.shutDownAll();  // 强制关闭所有子线程
+            }, 500);
+            
+            this.scriptThread = null;
+            this.addLog("脚本已停止，强制关闭所有线程");
+        } catch (e) {
+            this.addLog("停止脚本出错: " + e.message);
+        }
+    } else {
+        // 即使没有主线程记录，也尝试关闭所有线程
+        threads.shutDownAll();
+        this.addLog("已强制终止所有线程");
     }
+    
+    // 重置UI状态
     this.resetScriptButtons();
 };
 
 /**
  * 重置脚本按钮状态
+ * @param {boolean} canStart - true: 可以启动脚本, false: 无法启动脚本（脚本运行中）
  */
-MainUI.prototype.resetScriptButtons = function() {
-    ui.startScriptBtn.setEnabled(true);
-    ui.stopScriptBtn.setEnabled(false);
-    ui.startScriptBtn.attr("bg", "#FF5722");
-    ui.stopScriptBtn.attr("bg", "#9E9E9E");
+MainUI.prototype.resetScriptButtons = function(canStart) {
+    if (canStart === undefined) canStart = true;
+    
+    ui.startScriptBtn.setEnabled(canStart);
+    ui.stopScriptBtn.setEnabled(!canStart);
+    
+    if (canStart) {
+        ui.startScriptBtn.attr("bg", "#FF5722");
+        ui.stopScriptBtn.attr("bg", "#9E9E9E");
+    } else {
+        ui.startScriptBtn.attr("bg", "#9E9E9E");
+        ui.stopScriptBtn.attr("bg", "#FF5722");
+    }
+    
+    // 同步悬浮窗按钮状态
+    if (this.floatingWindow) {
+        this.floatingWindow.updateButtonState(canStart);
+    }
 };
 
 /**
@@ -806,6 +905,11 @@ MainUI.prototype.switchToMode = function(mode) {
     }
     
     this.addLog("已切换到" + ui.currentModeDisplay.getText());
+    
+    // 同步模式到悬浮窗
+    if (this.floatingWindow && this.isFloatingWindowActive) {
+        this.floatingWindow.setCurrentMode(mode);
+    }
 };
 
 /**

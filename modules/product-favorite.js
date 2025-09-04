@@ -53,6 +53,10 @@ function ProductFavorite() {
  */
 ProductFavorite.prototype.execute = function(window, priceRange, userName, favoriteQuantity) {
     try {
+        // 重置停止标志
+        global.scriptStopped = false;
+        GlobalStopManager.reset();
+        
         // 设置默认收藏数量
         favoriteQuantity = favoriteQuantity || 10;
         if (favoriteQuantity < 1) favoriteQuantity = 1;

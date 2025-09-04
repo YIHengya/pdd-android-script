@@ -22,6 +22,7 @@ var GlobalStopManager = {
      */
     stop: function() {
         this.shouldStop = true;
+        global.scriptStopped = true;  // 同步到全局变量
         console.log("GlobalStopManager: 设置全局停止标志");
     },
 
@@ -30,6 +31,7 @@ var GlobalStopManager = {
      */
     reset: function() {
         this.shouldStop = false;
+        global.scriptStopped = false;  // 同步到全局变量
         console.log("GlobalStopManager: 重置全局停止标志");
     },
 
@@ -67,7 +69,8 @@ var GlobalStopManager = {
      * @returns {boolean} 是否应该停止
      */
     isStopRequested: function() {
-        return this.shouldStop;
+        // 检查内部标志和全局标志
+        return this.shouldStop || global.scriptStopped === true;
     },
 
     /**

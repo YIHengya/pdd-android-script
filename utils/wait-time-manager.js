@@ -104,12 +104,40 @@ WaitTimeManager.prototype.getWaitTime = function(timeType) {
 };
 
 /**
- * 执行等待
+ * 执行等待，支持中断
  * @param {string|number} timeType 等待时间类型或具体毫秒数
+ * @returns {boolean} 是否等待成功（false表示被中断）
  */
 WaitTimeManager.prototype.wait = function(timeType) {
     var waitTime = this.getWaitTime(timeType);
-    sleep(waitTime);
+    
+    // 如果等待时间很短，直接等待
+    if (waitTime <= 100) {
+        sleep(waitTime);
+        return true;
+    }
+    
+    // 对于较长的等待时间，分段等待并检查停止标志
+    var startTime = new Date().getTime();
+    var endTime = startTime + waitTime;
+    var checkInterval = 100; // 每100毫秒检查一次停止标志
+    
+    while (new Date().getTime() < endTime) {
+        // 检查全局停止标志
+        if (global.scriptStopped === true) {
+            console.log("等待被中断：检测到停止标志");
+            return false;
+        }
+        
+        // 检查剩余等待时间
+        var remaining = endTime - new Date().getTime();
+        if (remaining <= 0) break;
+        
+        // 等待一个检查间隔或剩余时间（取较小值）
+        sleep(Math.min(checkInterval, remaining));
+    }
+    
+    return true;
 };
 
 /**
