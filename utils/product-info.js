@@ -49,6 +49,16 @@ ProductInfoExtractor.prototype.extractProductInfo = function(window, userName, f
             product_sku: this.getProductSku(window)
         };
 
+        // 二次校验：若存在调用方在实例上设置的当前区间，则强制验证价格区间
+        try {
+            if (this.currentPriceRange && typeof this.currentPriceRange.min === 'number' && typeof this.currentPriceRange.max === 'number') {
+                if (!productInfo.product_price || productInfo.product_price < this.currentPriceRange.min || productInfo.product_price > this.currentPriceRange.max) {
+                    logger.addLog(window, "❌ 详情页价格超出允许区间 (" + this.currentPriceRange.min + "-" + this.currentPriceRange.max + ")，跳过");
+                    return null;
+                }
+            }
+        } catch (_) {}
+
         // 验证必要信息是否获取成功
         if (!productInfo.shop_name) {
             logger.addLog(window, "❌ 无法获取店铺名称");

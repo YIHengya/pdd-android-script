@@ -128,7 +128,28 @@ SearchMode.prototype.execute = function(window, keyword, options){
 
       logger.addLog(window, "找到商品信息 - 文本: '" + foundProduct.text + "', 价格: " + foundProduct.price + ' 元');
 
+      // 进入详情页后立即检查是否已收藏，避免不必要的后续操作
+      try{
+        waitTimeManager.wait('verification');
+        if(this.isProductAlreadyFavorited(window)){
+          logger.addLog(window, '🔖 该商品已在收藏中（详情页初始判定），跳过本商品');
+          if(!this.backToProductListPage(window)){
+            logger.addLog(window, '⚠️ 无法返回列表页，回主页并重新搜索');
+            this.homeNavigation.goToHomePage(window);
+            waitTimeManager.wait('pageStable');
+            if(!this.searchNavigation.focusSearchBar()){
+              logger.addLog(window, '⚠️ 重新聚焦搜索框失败');
+            }
+            this.searchNavigation.inputKeywordAndSearch(keyword);
+            waitTimeManager.wait('pageStable');
+          }
+          continue;
+        }
+      }catch(_){}
+
       // 提取商品信息并权限检查
+      // 传递当前价格区间，供详情页二次校验
+      this.productInfoExtractor.currentPriceRange = this.currentPriceRange;
       var productInfo = this.productInfoExtractor.extractProductInfo(window, userName, foundProduct.price);
       if(!productInfo){
         logger.addLog(window, '无法获取商品信息，返回列表继续寻找');
@@ -237,6 +258,9 @@ SearchMode.prototype.findProducts = function(window, priceRange, forceScroll){
 };
 SearchMode.prototype.isSearchBoxOrNonProductArea = function(element, text){
   return Search.isSearchBoxOrNonProductArea.call(this, element, text);
+};
+SearchMode.prototype.isPromotionalPriceText = function(text){
+  return Search.isPromotionalPriceText.call(this, text);
 };
 SearchMode.prototype.findClickableProductArea = function(window, priceElement){
   return Search.findClickableProductArea.call(this, window, priceElement);

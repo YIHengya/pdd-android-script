@@ -111,6 +111,8 @@ ProductFavorite.prototype.execute = function(window, priceRange, userName, favor
             logger.addLog(window, "✅ 找到商品，开始收藏前的权限检查");
 
             // 提取商品信息并检查收藏权限
+            // 传递当前价格区间用于详情页二次校验
+            this.productInfoExtractor.currentPriceRange = this.currentPriceRange;
             var productInfo = this.productInfoExtractor.extractProductInfo(window, userName, foundProduct.price);
             if (!productInfo) {
                 logger.addLog(window, "无法获取商品信息，返回主页继续寻找");
@@ -188,6 +190,9 @@ ProductFavorite.prototype.findProducts = function(window, priceRange, forceScrol
 };
 ProductFavorite.prototype.isSearchBoxOrNonProductArea = function(element, text) {
     return Search.isSearchBoxOrNonProductArea.call(this, element, text);
+};
+ProductFavorite.prototype.isPromotionalPriceText = function(text) {
+    return Search.isPromotionalPriceText.call(this, text);
 };
 ProductFavorite.prototype.findClickableProductArea = function(window, priceElement) {
     return Search.findClickableProductArea.call(this, window, priceElement);

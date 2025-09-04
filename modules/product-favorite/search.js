@@ -67,6 +67,12 @@ module.exports = {
                         var price = parsePrice(textValue);
                         if (price !== null && price > 0 && price >= priceRange.min && price <= priceRange.max) {
 
+                            // 新增：过滤促销/满减等非实际价格文案
+                            if (this.isPromotionalPriceText(textValue)) {
+                                logger.addLog(window, "跳过促销文案: " + textValue);
+                                continue;
+                            }
+
                             // 过滤掉搜索框和其他非商品区域的文本
                             if (this.isSearchBoxOrNonProductArea(element, textValue)) {
                                 logger.addLog(window, "跳过搜索框或非商品区域: " + textValue);
@@ -145,6 +151,29 @@ module.exports = {
                 }
             }
             
+            return false;
+        } catch (e) {
+            return false;
+        }
+    },
+
+    /**
+     * 过滤促销/满减等非实际价格文案
+     * @param {string} text 文本内容
+     * @returns {boolean} 是否属于促销文案
+     */
+    isPromotionalPriceText: function(text) {
+        try {
+            var t = String(text || '');
+            var promoKeywords = [
+                '立减', '满减', '每满', '优惠券', '领券', '券后', '返', '返现', '红包', '补贴', '省', '直降', '折',
+                '秒杀', '特价', '活动', '赠', '加价购', '预估'
+            ];
+            for (var i = 0; i < promoKeywords.length; i++) {
+                if (t.indexOf(promoKeywords[i]) !== -1) return true;
+            }
+            // 屏蔽销量/人数等数字，如“1.6万人拼”、“500件”、“100人付款”
+            if (/[万万人件人]$/.test(t) || /(月销|人付款|人已拼|万人拼|销量)/.test(t)) return true;
             return false;
         } catch (e) {
             return false;
