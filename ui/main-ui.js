@@ -41,7 +41,7 @@ MainUI.prototype.show = function() {
         <drawer id="drawer">
             <vertical>
                 <appbar>
-                    <toolbar id="toolbar" title="拼多多自动化工具"/>
+                    <toolbar id="toolbar" title="自动购物工具"/>
                 </appbar>
                 
                 <ScrollView>
@@ -77,13 +77,13 @@ MainUI.prototype.show = function() {
                                 </horizontal>
                                 
                                 <horizontal gravity="center" margin="0 0 12dp 0">
+                                    <button id="searchModeBtn" text="搜索模式" textColor="#666666" bg="#E0E0E0"
+                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                     <button id="favoriteSettlementModeBtn" text="收藏结算" textColor="#666666" bg="#E0E0E0"
                                             w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                     <button id="paymentModeBtn" text="支付模式" textColor="#666666" bg="#E0E0E0"
                                             w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                     <button id="deliveryModeBtn" text="待收货" textColor="#666666" bg="#E0E0E0"
-                                            w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
-                                    <button id="searchModeBtn" text="搜索模式" textColor="#666666" bg="#E0E0E0"
                                             w="0dp" h="35dp" margin="1dp" textSize="11sp" layout_weight="1"/>
                                 </horizontal>
 
@@ -103,28 +103,28 @@ MainUI.prototype.show = function() {
                                 
                                 <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                                     <text text="价格区间:" textSize="14sp" textColor="#666666" w="80dp"/>
-                                    <text id="priceRangeText" text="0.50-0.80元" textSize="14sp" textColor="#333333" textStyle="bold"/>
+                                    <text id="priceRangeText" text="0.35-0.65元" textSize="14sp" textColor="#333333" textStyle="bold"/>
                                 </horizontal>
                                 
                                 <horizontal gravity="center_vertical" margin="0 0 4dp 0">
                                     <text text="最低价:" textSize="12sp" textColor="#666666" w="50dp"/>
                                     <seekbar id="minPriceSeek" w="*" h="20dp" margin="0 8dp 0 8dp"
-                                             max="100" progress="21" progressTint="#4CAF50" thumbTint="#4CAF50"/>
-                                    <text id="minPriceValue" text="0.50" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
+                                             max="100" progress="13" progressTint="#4CAF50" thumbTint="#4CAF50"/>
+                                    <text id="minPriceValue" text="0.35" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
                                 </horizontal>
                                 
                                 <horizontal gravity="center_vertical" margin="0 0 8dp 0">
                                     <text text="最高价:" textSize="12sp" textColor="#666666" w="50dp"/>
                                     <seekbar id="maxPriceSeek" w="*" h="20dp" margin="0 8dp 0 8dp"
-                                             max="100" progress="37" progressTint="#FF5722" thumbTint="#FF5722"/>
-                                    <text id="maxPriceValue" text="0.80" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
+                                             max="100" progress="29" progressTint="#FF5722" thumbTint="#FF5722"/>
+                                    <text id="maxPriceValue" text="0.65" textSize="12sp" textColor="#666666" w="40dp" gravity="center"/>
                                 </horizontal>
 
                                 <horizontal gravity="center_vertical">
                                     <text text="数量:" textColor="#666666" textSize="12sp" w="40dp"/>
-                                    <text id="quantityText" text="(1件)" textSize="12sp" textColor="#666666" w="50dp" gravity="left"/>
+                                    <text id="quantityText" text="(3件)" textSize="12sp" textColor="#666666" w="50dp" gravity="left"/>
                                     <seekbar id="quantitySeek" w="*" h="20dp" margin="0 4dp 0 4dp"
-                                             max="99" progress="0" progressTint="#9C27B0" thumbTint="#9C27B0"/>
+                                             max="99" progress="2" progressTint="#9C27B0" thumbTint="#9C27B0"/>
                                 </horizontal>
 
                                 {/* 等待时间速度设置（合并显示） */}
@@ -251,8 +251,8 @@ MainUI.prototype.initializeMode = function() {
  * 初始化等待时间倍率显示
  */
 MainUI.prototype.initializeSpeedDisplay = function() {
-    // 不与悬浮窗同步：直接使用默认显示 6.0x，仅更新本界面的UI，不改动全局倍率
-    var defaultMultiplier = 6.0;
+    // 不与悬浮窗同步：直接使用默认显示 3.0x，仅更新本界面的UI，不改动全局倍率
+    var defaultMultiplier = 3.0;
     var speedText = "(" + defaultMultiplier.toFixed(1) + "x)";
     ui.speedText.setText(speedText);
     // 同步滑条到默认值（0.1-10.0 -> 0-99）
@@ -1000,7 +1000,7 @@ MainUI.prototype.showHelp = function() {
  */
 MainUI.prototype.showAbout = function() {
     dialogs.alert("关于",
-        "拼多多自动化工具 v1.0.0\n\n" +
+        "自动化购物工具 v1.0.0\n\n" +
         "功能特性：\n" +
         "• 悬浮窗控制\n" +
         "• 自动购买商品\n" +
